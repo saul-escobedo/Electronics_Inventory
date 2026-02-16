@@ -81,7 +81,7 @@ On Windows, run it in powershell:
 .\ecim.exe
 ```
 
-Planning to contribute? Be sure the read our [contributing steps](./CONTRIBUTING.md) to get up to speed on our workflow.
+Planning to contribute? Be sure the read our [contributing guidelines](./CONTRIBUTING.md) to get up to speed on our workflow.
 
 ## Project Structure
 
