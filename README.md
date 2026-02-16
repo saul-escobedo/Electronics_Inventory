@@ -6,6 +6,7 @@
 
 * [Description](#description)
 * [Build Instructions](#build-instructions)
+* [Project Structure](#project-structure)
 * [Licenses](#licenses)
 
 ## Description
@@ -63,7 +64,7 @@ cmake ..
 At this step, ensure that there is no configuration errors. If there are any, it is likely because the Qt dev library was not found. Be sure to resolve that issue beforehand, and run the CMake configuration step again. Finally build the application:
 
 ```bash
-cmake --build . --target emic
+cmake --build . --target ecim
 ```
 
 **Running the Executable**
@@ -79,6 +80,19 @@ On Windows, run it in powershell:
 ```powershell
 .\ecim.exe
 ```
+
+Planning to contribute? Be sure the read our [contributing steps](./CONTRIBUTING.md) to get up to speed on our workflow.
+
+## Project Structure
+
+This project is organized into predefined directories for different types of files.
+
+* `.hpp` header files go into the `include` directory.
+* `.cpp` source files go into the `src` directory.
+* The application's assets such as images, fonts, sounds, or "asset-link" binaries go into `assets`.
+* The root directory of this repository contains the `CMakeLists.txt` file, `.gitignore`, and any other configuration files.
+
+As the project grows, more directories and further details will be added.
 
 ## Licenses
 
