@@ -64,14 +64,14 @@ ImportantClass importantClassInstance;
 
 The codebase of the project should follow best practices to maintain consistency.
 
-- Do not use `using namespace` at global scope. This is to avoid name collisions, so fully-qualified names (`std::cout`) or selective `using` declarations in implementation scope (`using std::string;` inside a function) instead.
-- Private functions should start with a single underscore, e.g. `_do_something()`).
+- Do not use `using namespace` at global scope. This is to avoid name collisions, so fully-qualified names (`std::cout`) or selective `using` declarations in implementation scope (`using std::string;` inside a function) are preferred.
+- Private functions should start with a single underscore (e.g. `_do_something()`).
 - Every header must use either `#pragma once` (preferrably) or a classic include guard (`#ifndef ... #define ... #endif`).
 - Do not `#include` `.cpp` files.
 - Use `enum class` for strongly-typed, scoped enumerations.
 - Do not use globals unless necessary. Prefer passing state explicitly or encapsulating it in a class or singleton with a clear interface.
 - Provide a header for each module exposing its API. Inline or `constexpr` functions may be defined in headers; otherwise put implementations in corresponding `.cpp` files.
-- API functions should validate parameters and return meaningful results
+- API functions should validate parameters and return meaningful results.
 - Prefer expressive return types such as `enum class` error codes, `std::optional`, or `std::expected` (when available) instead of `bool`.
 - Global variables should use `g_` prefix (e.g. `g_config`). Translation-unit-local static globals should use `s_` prefix (e.g. `s_cache`).
 - Prefer functions of ~60 lines or fewer. If a function becomes large, split it into smaller, well-named helper functions.
