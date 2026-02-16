@@ -10,6 +10,12 @@ target_include_directories(electronics_app_impl
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+target_link_libraries(electronics_app_impl 
+    PRIVATE
+        Qt6::Core 
+        Qt6::Widgets
+)
+
 # Public-facing library composed from implementation objects
 add_library(electronics_app 
     STATIC 
