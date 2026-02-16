@@ -1,8 +1,8 @@
 # Contributions Guidelines
 
-To get started on contributing the this project's codebase, read the (build instructions)[./README.md/#build-instructions] to get an idea of how to setup your local development repository.
+To get started on contributing the this project's codebase, read the [build instructions](./README.md/#build-instructions) to get an idea of how to setup your local development repository.
 
-The following guidlines are similar to (PrismLauncher's guidlines)[https://github.com/PrismLauncher/PrismLauncher?tab=contributing-ov-file] with some modifications.
+The following guidlines are similar to [PrismLauncher's guidlines](https://github.com/PrismLauncher/PrismLauncher?tab=contributing-ov-file) with some modifications.
 
 ## Code style
 
