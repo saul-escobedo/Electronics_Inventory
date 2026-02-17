@@ -1,48 +1,24 @@
 cmake_minimum_required(VERSION 3.20)
 
-
 # Project Name & executable name
-project(ecim)
+project(ecim VERSION 1.0.0 LANGUAGES CXX)
 
-
-
+# Set C++ standard and compiler flags
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Include the app implementation subdirectory
+add_subdirectory(app)
 
+# Create executable from app implementation
+add_executable(${PROJECT_NAME} app/src/main.cpp)
 
-# Find and locate the developer's installation of Qt
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+# Link libraries and include directories
+target_link_libraries(${PROJECT_NAME} PRIVATE ecim_impl)
 
-
-
-# PROJECT_SOURCES contains all active source files that will be compiled into
-# the executable
-set(PROJECT_SOURCES
-	src/main.cpp
-	src/ProjectSetupTest.cpp
-)
-add_executable(${PROJECT_NAME} ${PROJECT_SOURCES})
-
-
-
-# Project's include directories where all the header files reside (cpp files
-# and header files are located in different directories)
-target_include_directories(${PROJECT_NAME} PRIVATE
-	include
-)
-
-
-# Links all required libraries into the executable
-target_link_libraries(${PROJECT_NAME}
-	Qt6::Core
-	Qt6::Widgets
-)
-
-
-
-# Generate compile commands because some IDEs uses clangd language servers
+# Generate compile commands because some IDEs use clangd language servers
 # for auto-complete and code suggestions
 if (PROJECT_IS_TOP_LEVEL AND UNIX)
 	execute_process(
@@ -51,3 +27,5 @@ if (PROJECT_IS_TOP_LEVEL AND UNIX)
     	${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
 	)
 endif()
+
+message(STATUS "Configured ${PROJECT_NAME} (v${PROJECT_VERSION})")
