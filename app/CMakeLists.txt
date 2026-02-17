@@ -1,18 +1,23 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
-# Collect all source files
-file(GLOB_RECURSE APP_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+project(ecim_impl)
 
-# Build implementation as an OBJECT library so internal headers remain private
-add_library(electronics_app_impl OBJECT ${APP_SOURCES})
-target_include_directories(electronics_app_impl
-    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/include"
+# Find Qt6 required components
+find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
+
+# Source files must be explicitly added because globbing files could
+# unintentionally include wrong or temporary CPP files. It also makes
+# reviewing new source files easier since adding sources will be
+# more intentional.
+set(APP_SOURCES
+	src/Application.cpp
 )
-target_link_libraries(electronics_app_impl PRIVATE Qt6::Core Qt6::Widgets)
 
-# Public-facing static library composed from implementation objects
-add_library(electronics_app STATIC $<TARGET_OBJECTS:electronics_app_impl>)
-target_include_directories(electronics_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
-target_link_libraries(electronics_app PUBLIC Qt6::Core Qt6::Widgets)
-
-message(STATUS "Configured app subproject")
+# Build implementation as an OBJECT library
+add_library(${PROJECT_NAME} OBJECT ${APP_SOURCES})
+# All header files will be localized in the 'include' directory
+target_include_directories(${PROJECT_NAME} PUBLIC include)
+target_link_libraries(${PROJECT_NAME} PUBLIC
+	Qt6::Core
+	Qt6::Widgets
+)
