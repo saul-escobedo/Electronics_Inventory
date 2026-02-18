@@ -11,6 +11,7 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 # more intentional.
 set(APP_SOURCES
 	src/Application.cpp
+	src/electronic_components.cpp
 )
 
 # Build implementation as an OBJECT library
@@ -21,3 +22,28 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 	Qt6::Core
 	Qt6::Widgets
 )
+
+
+# testing section, be careful
+option(ENABLE_TESTING "Enable building tests" ON)
+
+if(ENABLE_TESTING)
+	add_executable(test_components 
+		src/electronic_components.cpp
+		tests/test_components.cpp 
+	)
+
+	target_include_directories(test_components PRIVATE include)
+	set_target_properties(test_components PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+
+	# Enable CTest and register the test executable so `ctest`/`cmake --build --target check` can run it
+	include(CTest)
+	enable_testing()
+	add_test(NAME test_components COMMAND test_components)
+
+	# Convenience target to run ctest with output on failure
+	add_custom_target(check
+		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+		DEPENDS test_components
+	)
+endif()
