@@ -87,10 +87,13 @@ Planning to contribute? Be sure the read our [contributing guidelines](./CONTRIB
 
 This project is organized into predefined directories for different types of files.
 
+The primary codebase of the applicaiton resides in the `app` directory. Inside the `app` directory:
 * `.hpp` header files go into the `include` directory.
 * `.cpp` source files go into the `src` directory.
-* The application's assets such as images, fonts, sounds, or "asset-link" binaries go into `assets`.
-* The root directory of this repository contains the `CMakeLists.txt` file, `.gitignore`, and any other configuration files.
+
+The application's assets such as images, fonts, sounds, or "asset-like" binaries go into `assets`.
+
+The root directory of this repository contains the `CMakeLists.txt` file, `.gitignore`, and any other configuration files.
 
 As the project grows, more directories and further details will be added.
 
