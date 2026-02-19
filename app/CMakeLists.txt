@@ -12,6 +12,7 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 set(APP_SOURCES
 	src/Application.cpp
 	src/electronic_components.cpp
+	src/electronics_manager.cpp
 )
 
 # Build implementation as an OBJECT library

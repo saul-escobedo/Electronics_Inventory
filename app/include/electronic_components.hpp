@@ -7,6 +7,17 @@ using std::string, std::invalid_argument;
 
 // electronic inventory project
 namespace eip {
+
+    enum class ComponentType {
+        Resistor,
+        Capacitor,
+        Inductor,
+        Diode,
+        Transistor,
+        Mosfet,
+        IntegratedCircuit
+    };
+
     struct ElectronicRating {
         double voltage;
         double current;
@@ -14,11 +25,19 @@ namespace eip {
         double tolerance;
     };
 
+    using componentId = size_t;
+
+    // forward declaration of the manager
+    class ComponentManager;
+
     class ElectronicComponent {
+        // only the manager can set the component internal id;
+        friend class ComponentManager;
+
     public:
     explicit ElectronicComponent(
         const string& name, 
-        const string& type, 
+        ComponentType type,
         const string& manufacturer,
         const string& partNumber, 
         const string& description, 
@@ -33,9 +52,10 @@ namespace eip {
     {
         // only description can be empty, all other fields must be validated
         if (name.empty()) 
-            throw invalid_argument("Component name cannot be empty"); 
-        if (type.empty()) 
-            throw invalid_argument("Component type cannot be empty"); 
+            throw invalid_argument("Component name cannot be empty");
+
+        // valid compnent type?
+
         if (manufacturer.empty()) 
             throw invalid_argument("Manufacturer cannot be empty");
             
@@ -56,20 +76,24 @@ namespace eip {
     ElectronicComponent(const ElectronicComponent&) = delete;
     ElectronicComponent(ElectronicComponent&&) = delete;
 
-    const string &getName() const { return m_name; }
-    const string &getType() const { return m_type; }
-    const string &getManufacturer() const { return m_manufacturer; }
-    const string &getPartNumber() const { return m_partNumber; }
-    const string &getDescription() const { return m_description; }
-    const ElectronicRating &getRating() const { return m_rating; }
+    const string &name() const { return m_name; }
+    ComponentType type() const { return m_type; }
+    const string &manufacturer() const { return m_manufacturer; }
+    const string &partNumber() const { return m_partNumber; }
+    const string &description() const { return m_description; }
+    const ElectronicRating &rating() const { return m_rating; }
+    const componentId id() const { return m_id; }
 
     private:
+        // only the manager can use this function.
+        void _setId(componentId id) { m_id = id; }
         ElectronicRating m_rating;
         string m_name;
-        string m_type;
+        ComponentType m_type;
         string m_manufacturer;
         string m_partNumber;
         string m_description;
+        componentId m_id; // unique identifier assigned by the manager
     };
 
     class Resistor final : public ElectronicComponent {
@@ -85,7 +109,7 @@ namespace eip {
         )
             : ElectronicComponent(
                 name, 
-                "Resistor", 
+                ComponentType::Resistor, 
                 manufacturer, 
                 partNumber, 
                 description, 
@@ -121,7 +145,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "Capacitor", 
+                    ComponentType::Capacitor, 
                     manufacturer, 
                     partNumber, 
                     description, 
@@ -156,7 +180,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "Inductor", 
+                    ComponentType::Inductor, 
                     manufacturer, 
                     partNumber, 
                     description, 
@@ -187,7 +211,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "Diode", 
+                    ComponentType::Diode, 
                     manufacturer, 
                     partNumber, 
                     description, 
@@ -222,7 +246,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "Transistor", 
+                    ComponentType::Transistor, 
                     manufacturer, 
                     partNumber, 
                     description, 
@@ -252,7 +276,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "MOSFET", 
+                    ComponentType::Mosfet, 
                     manufacturer, 
                     partNumber, 
                     description, 
@@ -285,7 +309,7 @@ namespace eip {
             )
                 : ElectronicComponent(
                     name, 
-                    "Integrated Circuit",
+                    ComponentType::IntegratedCircuit,
                     manufacturer, 
                     partNumber, 
                     description, 
