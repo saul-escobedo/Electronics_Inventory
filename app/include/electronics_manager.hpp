@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <unordered_map>
+#include <cstdint>
 
 using std::vector, std::unique_ptr, std::map, std::unordered_map, std::uint64_t;
 
@@ -22,6 +23,8 @@ namespace eip {
         bool removeComponent(componentId id);
         ElectronicComponent* getComponent(componentId id);
 
+        void getAllComponentsByType(ComponentType type, vector<ElectronicComponent*>& outComponents) const;
+        void getAllComponents(vector<ElectronicComponent*>& outComponents) const;
         private:
 
         struct FoundComponent {

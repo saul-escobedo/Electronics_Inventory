@@ -31,6 +31,7 @@ option(ENABLE_TESTING "Enable building tests" ON)
 if(ENABLE_TESTING)
 	add_executable(test_components 
 		src/electronic_components.cpp
+		src/electronics_manager.cpp
 		tests/test_components.cpp 
 	)
 

@@ -1,4 +1,5 @@
 #include "electronics_manager.hpp"
+#include <algorithm>
 
 using eip::ElectronicsManager, eip::ElectronicComponent, eip::componentId, eip::ComponentType;
 
@@ -42,8 +43,28 @@ ElectronicComponent* ElectronicsManager::getComponent(componentId id)
     return found.found() ? found.component : nullptr;
 }
 
+void ElectronicsManager::getAllComponentsByType(ComponentType type, vector<ElectronicComponent *> &outComponents) const
+{
+    auto it = m_componentMap.find(type);
+    if (it != m_componentMap.end()) {
+        const ec_vector &components = it->second;
+        for (const auto& comp : components) {
+            outComponents.push_back(comp.get());
+        }
+    }
+}
+
+void ElectronicsManager::getAllComponents(vector<ElectronicComponent *> &outComponents) const
+{
+    for (const auto &it : m_componentMap) {
+        getAllComponentsByType(it.first, outComponents);
+    }
+}
+
 ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(componentId id)
 {
+    ElectronicsManager::FoundComponent result = {};
+
     for (auto& [type, components] : m_componentMap) {
         auto it = std::find_if(
             components.begin(),
@@ -52,11 +73,14 @@ ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(compon
         );
 
         if (it != components.end()) {
-            return { it->get(), &components, it };
+            result.component = it->get();
+            result.container = &components;
+            result.iterator = it;
+            return result;
         }
     }
 
-    return {}; // empty result
+    return result; // empty result
 }
 
 uint64_t ElectronicsManager::_generateId()
