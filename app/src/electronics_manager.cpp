@@ -2,11 +2,13 @@
 #include <algorithm>
 
 using eip::ElectronicsManager, eip::ElectronicComponent, eip::componentId, eip::ComponentType;
+using std::find_if;
 
 ElectronicsManager::ElectronicsManager()
 {
     // load components from database or file here
     this->m_currentId = 1; // for testing
+    // sadd all the current items from the database
 }
 
 ElectronicsManager &ElectronicsManager::instance()
@@ -19,12 +21,26 @@ ElectronicsManager &ElectronicsManager::instance()
 
 void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component) 
 {
+    // Assign a unique ID before inserting
+    component->_setId(_generateId());
+
     const ComponentType type = component->type();
     ec_vector& components = m_componentMap[type];
-    components.push_back(std::move(component));
+    auto it = find_if(
+        components.begin(),
+        components.end(),
+        [&component](const auto& comp) { return comp->id() == component->id(); }
+    );
+
+    if (it == components.end()) {
+        components.push_back(std::move(component));
+    }
+    else {
+        throw std::invalid_argument("Component with the same ID already exists");
+    }
 }
 
-bool ElectronicsManager::removeComponent(componentId id) 
+bool ElectronicsManager::removeComponent(componentId id)
 {
     FoundComponent found = _findComponentById(id);
     if (found.found()) {
@@ -66,7 +82,7 @@ ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(compon
     ElectronicsManager::FoundComponent result = {};
 
     for (auto& [type, components] : m_componentMap) {
-        auto it = std::find_if(
+        auto it = find_if(
             components.begin(),
             components.end(),
             [id](const auto& comp) { return comp->id() == id; }

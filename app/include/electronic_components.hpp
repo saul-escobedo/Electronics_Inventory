@@ -23,53 +23,61 @@ namespace eip {
         double current;
         double power;
         double tolerance;
+
+        bool valid() const {
+            return voltage >= 0 
+                && current >= 0 
+                && power >= 0 
+                && tolerance >= 0;
+        }
+    };
+
+    struct ComponentBaseConfig {
+        ElectronicRating rating;
+        string name;
+        ComponentType type;
+        string manufacturer;
+        string partNumber;
+        string description;
+        size_t quantity;
     };
 
     using componentId = size_t;
 
     // forward declaration of the manager
-    class ComponentManager;
+    class ElectronicsManager;
 
     class ElectronicComponent {
         // only the manager can set the component internal id;
-        friend class ComponentManager;
+        friend class ElectronicsManager;
 
     public:
     explicit ElectronicComponent(
-        const string& name, 
-        ComponentType type,
-        const string& manufacturer,
-        const string& partNumber, 
-        const string& description, 
-        const ElectronicRating& rating
+            const ComponentBaseConfig& config
     )
-        : m_name(name), 
-        m_type(type), 
-        m_manufacturer(manufacturer),
-        m_partNumber(partNumber),
-        m_description(description),
-        m_rating(rating)
+        : m_rating(config.rating),
+        m_name(config.name), 
+        m_type(config.type), 
+        m_manufacturer(config.manufacturer),
+        m_partNumber(config.partNumber),
+        m_description(config.description),
+        m_quantity(config.quantity)
     {
         // only description can be empty, all other fields must be validated
-        if (name.empty()) 
+        if (config.name.empty())
             throw invalid_argument("Component name cannot be empty");
 
         // valid compnent type?
 
-        if (manufacturer.empty()) 
+        if (config.manufacturer.empty()) 
             throw invalid_argument("Manufacturer cannot be empty");
             
         // Part number can be empty for generic components, but if provided it should not be empty
-        //if (partNumber.empty())
+        //if (config.partNumber.empty())
         //    throw invalid_argument("Part number cannot be empty");
-        if (rating.voltage < 0)
-            throw invalid_argument("Voltage rating cannot be negative");
-        if (rating.current < 0)
-            throw invalid_argument("Current rating cannot be negative");
-        if (rating.power < 0)
-            throw invalid_argument("Power rating cannot be negative");
-        if (rating.tolerance < 0)
-            throw invalid_argument("Tolerance cannot be negative");
+
+        if (!config.rating.valid())
+            throw invalid_argument("Invalid electronic rating values");
     }
 
     ElectronicComponent() = delete;
@@ -83,6 +91,15 @@ namespace eip {
     const string &description() const { return m_description; }
     const ElectronicRating &rating() const { return m_rating; }
     const componentId id() const { return m_id; }
+    size_t quantity() const { return m_quantity; }
+
+    void addQuantity(size_t amount) { m_quantity += amount; }
+    
+    void removeQuantity(size_t amount) { 
+        if (amount > m_quantity)
+            throw invalid_argument("Cannot remove more quantity than available");
+        m_quantity -= amount; 
+    }
 
     private:
         // only the manager can use this function.
@@ -94,27 +111,17 @@ namespace eip {
         string m_partNumber;
         string m_description;
         componentId m_id; // unique identifier assigned by the manager
+        size_t m_quantity;
     };
 
     class Resistor final : public ElectronicComponent {
         public:
         Resistor(
-            const string& name, 
-            const string& manufacturer,
-            const string& partNumber, 
-            const string& description, 
-            const ElectronicRating& rating,
+            const ComponentBaseConfig& config,
             double resistance,
             double toleranceBand
         )
-            : ElectronicComponent(
-                name, 
-                ComponentType::Resistor, 
-                manufacturer, 
-                partNumber, 
-                description, 
-                rating
-            ),
+            : ElectronicComponent(config),
             m_resistance(resistance),
             m_toleranceBand(toleranceBand)
         {
@@ -131,26 +138,15 @@ namespace eip {
             double m_resistance;
             double m_toleranceBand; // last band of the resistor color code, e.g., 5% = 0.05
     };
-
+    
     class Capacitor final : public ElectronicComponent {
         public:
             Capacitor(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 const string& capacitorType,
                 double capacitance
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::Capacitor, 
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_capacitorType(capacitorType),
                 m_capacitance(capacitance)        
         {
@@ -171,21 +167,10 @@ namespace eip {
     class Inductor final : public ElectronicComponent {
         public:
             Inductor(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 double inductance
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::Inductor, 
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_inductance(inductance)
             {
                 if (inductance < 0)
@@ -201,22 +186,11 @@ namespace eip {
     class Diode final : public ElectronicComponent {
         public:
             Diode(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 double forwardVoltage,
                 const string& diodeType
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::Diode, 
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_forwardVoltage(forwardVoltage),
                 m_diodeType(diodeType)
             {
@@ -237,21 +211,10 @@ namespace eip {
     class Transistor final : public ElectronicComponent {
         public:
             Transistor(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 double gain
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::Transistor, 
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_gain(gain)
             {
                 if (gain < 0)
@@ -267,27 +230,16 @@ namespace eip {
     class Mosfet final : public ElectronicComponent {
         public:
             Mosfet(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 double thresholdVoltage
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::Mosfet, 
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_thresholdVoltage(thresholdVoltage)
             {
                 if (thresholdVoltage < 0)
                     throw invalid_argument("Threshold voltage cannot be negative");
             }
-            
+
             double thresholdVoltage() const { return m_thresholdVoltage; }
 
         private:
@@ -297,24 +249,13 @@ namespace eip {
     class IntegratedCircuit final : public ElectronicComponent {
         public:
             IntegratedCircuit(
-                const string& name, 
-                const string& manufacturer,
-                const string& partNumber, 
-                const string& description, 
-                const ElectronicRating& rating,
+                const ComponentBaseConfig& config,
                 size_t pinCount,
                 double width,
                 double height,
                 double length
             )
-                : ElectronicComponent(
-                    name, 
-                    ComponentType::IntegratedCircuit,
-                    manufacturer, 
-                    partNumber, 
-                    description, 
-                    rating
-                ),
+                : ElectronicComponent(config),
                 m_pinCount(pinCount),
                 m_width(width),
                 m_height(height),
