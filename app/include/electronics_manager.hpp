@@ -21,6 +21,7 @@ namespace eip {
 
         void addComponent(unique_ptr<ElectronicComponent> component);
         bool removeComponent(componentId id);
+        
         ElectronicComponent* getComponent(componentId id);
 
         void getAllComponentsByType(ComponentType type, vector<ElectronicComponent*>& outComponents) const;

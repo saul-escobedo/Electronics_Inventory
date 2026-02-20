@@ -2,7 +2,7 @@
 #include <algorithm>
 
 using eip::ElectronicsManager, eip::ElectronicComponent, eip::componentId, eip::ComponentType;
-using std::find_if;
+using std::find_if, std::invalid_argument;
 
 ElectronicsManager::ElectronicsManager()
 {
@@ -21,6 +21,10 @@ ElectronicsManager &ElectronicsManager::instance()
 
 void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component) 
 {
+    if (component == nullptr) {
+        throw invalid_argument("Component cannot be null");
+    }
+
     // Assign a unique ID before inserting
     component->_setId(_generateId());
 
@@ -36,7 +40,7 @@ void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component)
         components.push_back(std::move(component));
     }
     else {
-        throw std::invalid_argument("Component with the same ID already exists");
+        throw invalid_argument("Component with the same ID already exists");
     }
 }
 
