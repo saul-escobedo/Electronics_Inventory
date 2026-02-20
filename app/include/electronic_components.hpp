@@ -35,7 +35,6 @@ namespace eip {
     struct ComponentBaseConfig {
         ElectronicRating rating;
         string name;
-        ComponentType type;
         string manufacturer;
         string partNumber;
         string description;
@@ -53,15 +52,16 @@ namespace eip {
 
     public:
     explicit ElectronicComponent(
-            const ComponentBaseConfig& config
+            const ComponentBaseConfig& config,
+            ComponentType type
     )
         : m_rating(config.rating),
         m_name(config.name), 
-        m_type(config.type), 
         m_manufacturer(config.manufacturer),
         m_partNumber(config.partNumber),
         m_description(config.description),
-        m_quantity(config.quantity)
+        m_quantity(config.quantity),
+        m_type(type)
     {
         // only description can be empty, all other fields must be validated
         if (config.name.empty())
@@ -121,7 +121,7 @@ namespace eip {
             double resistance,
             double toleranceBand
         )
-            : ElectronicComponent(config),
+            : ElectronicComponent(config, ComponentType::Resistor),
             m_resistance(resistance),
             m_toleranceBand(toleranceBand)
         {
@@ -146,7 +146,7 @@ namespace eip {
                 const string& capacitorType,
                 double capacitance
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::Capacitor),
                 m_capacitorType(capacitorType),
                 m_capacitance(capacitance)        
         {
@@ -170,7 +170,7 @@ namespace eip {
                 const ComponentBaseConfig& config,
                 double inductance
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::Inductor),
                 m_inductance(inductance)
             {
                 if (inductance < 0)
@@ -190,7 +190,7 @@ namespace eip {
                 double forwardVoltage,
                 const string& diodeType
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::Diode),
                 m_forwardVoltage(forwardVoltage),
                 m_diodeType(diodeType)
             {
@@ -214,7 +214,7 @@ namespace eip {
                 const ComponentBaseConfig& config,
                 double gain
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::Transistor),
                 m_gain(gain)
             {
                 if (gain < 0)
@@ -233,7 +233,7 @@ namespace eip {
                 const ComponentBaseConfig& config,
                 double thresholdVoltage
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::Mosfet),
                 m_thresholdVoltage(thresholdVoltage)
             {
                 if (thresholdVoltage < 0)
@@ -255,7 +255,7 @@ namespace eip {
                 double height,
                 double length
             )
-                : ElectronicComponent(config),
+                : ElectronicComponent(config, ComponentType::IntegratedCircuit),
                 m_pinCount(pinCount),
                 m_width(width),
                 m_height(height),
