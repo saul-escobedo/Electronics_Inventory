@@ -7,21 +7,21 @@
 #include <unordered_map>
 #include <cstdint>
 
-using std::vector, std::unique_ptr, std::map, std::unordered_map, std::uint64_t;
+using std::vector, std::unique_ptr, std::unordered_map, std::uint64_t;
 
-namespace eip {
+namespace ecim {
     class ElectronicsManager {
         using ec_vector = vector<unique_ptr<ElectronicComponent>>;
 
         public:
-        
+
         ElectronicsManager();
 
         static ElectronicsManager& instance();
 
         void addComponent(unique_ptr<ElectronicComponent> component);
         bool removeComponent(componentId id);
-        
+
         ElectronicComponent* getComponent(componentId id);
 
         void getAllComponentsByType(ComponentType type, vector<ElectronicComponent*>& outComponents) const;
@@ -36,7 +36,7 @@ namespace eip {
         };
 
         FoundComponent _findComponentById(componentId id);
-        
+
         uint64_t _generateId();
         unordered_map<ComponentType, ec_vector> m_componentMap;
         uint64_t m_currentId;

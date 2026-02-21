@@ -5,7 +5,7 @@
 #include "electronics_manager.hpp"
 #include "electronic_math.hpp"
 
-using namespace eip;
+using namespace ecim;
 
 // ── Helper: build a ComponentBaseConfig quickly ──────────────────────────────
 static ComponentBaseConfig cfg(

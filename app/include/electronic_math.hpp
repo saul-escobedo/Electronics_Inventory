@@ -5,7 +5,7 @@
 #include <stdexcept>
 
 using std::vector;
-using namespace eip;
+using namespace ecim;
 
 // NOTE: Components are non-copyable and non-movable, so all math functions
 // accept vectors of const raw pointers rather than vectors of values.

@@ -6,7 +6,7 @@
 using std::string, std::invalid_argument;
 
 // electronic inventory project
-namespace eip {
+namespace ecim {
 
     enum class ComponentType {
         Resistor,
@@ -25,9 +25,9 @@ namespace eip {
         double tolerance;
 
         bool valid() const {
-            return voltage >= 0 
-                && current >= 0 
-                && power >= 0 
+            return voltage >= 0
+                && current >= 0
+                && power >= 0
                 && tolerance >= 0;
         }
     };
@@ -56,7 +56,7 @@ namespace eip {
             ComponentType type
     )
         : m_rating(config.rating),
-        m_name(config.name), 
+        m_name(config.name),
         m_manufacturer(config.manufacturer),
         m_partNumber(config.partNumber),
         m_description(config.description),
@@ -69,9 +69,9 @@ namespace eip {
 
         // valid compnent type?
 
-        if (config.manufacturer.empty()) 
+        if (config.manufacturer.empty())
             throw invalid_argument("Manufacturer cannot be empty");
-            
+
         // Part number can be empty for generic components, but if provided it should not be empty
         //if (config.partNumber.empty())
         //    throw invalid_argument("Part number cannot be empty");
@@ -94,11 +94,11 @@ namespace eip {
     size_t quantity() const { return m_quantity; }
 
     void addQuantity(size_t amount) { m_quantity += amount; }
-    
-    void removeQuantity(size_t amount) { 
+
+    void removeQuantity(size_t amount) {
         if (amount > m_quantity)
             throw invalid_argument("Cannot remove more quantity than available");
-        m_quantity -= amount; 
+        m_quantity -= amount;
     }
 
     private:
@@ -138,7 +138,7 @@ namespace eip {
             double m_resistance;
             double m_toleranceBand; // last band of the resistor color code, e.g., 5% = 0.05
     };
-    
+
     class Capacitor final : public ElectronicComponent {
         public:
             Capacitor(
@@ -148,7 +148,7 @@ namespace eip {
             )
                 : ElectronicComponent(config, ComponentType::Capacitor),
                 m_capacitorType(capacitorType),
-                m_capacitance(capacitance)        
+                m_capacitance(capacitance)
         {
             if (capacitance < 0)
                 throw invalid_argument("Capacitance cannot be negative");

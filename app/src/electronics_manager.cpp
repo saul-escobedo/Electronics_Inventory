@@ -1,7 +1,7 @@
 #include "electronics_manager.hpp"
 #include <algorithm>
 
-using eip::ElectronicsManager, eip::ElectronicComponent, eip::componentId, eip::ComponentType;
+using ecim::ElectronicsManager, ecim::ElectronicComponent, ecim::componentId;
 using std::find_if, std::invalid_argument;
 
 ElectronicsManager::ElectronicsManager()
@@ -19,7 +19,7 @@ ElectronicsManager &ElectronicsManager::instance()
     return instance;
 }
 
-void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component) 
+void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component)
 {
     if (component == nullptr) {
         throw invalid_argument("Component cannot be null");
@@ -57,7 +57,7 @@ bool ElectronicsManager::removeComponent(componentId id)
     return false;
 }
 
-ElectronicComponent* ElectronicsManager::getComponent(componentId id) 
+ElectronicComponent* ElectronicsManager::getComponent(componentId id)
 {
     FoundComponent found = _findComponentById(id);
     return found.found() ? found.component : nullptr;
