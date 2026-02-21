@@ -1,7 +1,7 @@
 #include "electronics_manager.hpp"
 #include <algorithm>
 
-using ecim::ElectronicsManager, ecim::ElectronicComponent, ecim::componentId;
+using ecim::ElectronicsManager, ecim::ElectronicComponent, ecim::ComponentID;
 using std::find_if, std::invalid_argument;
 
 ElectronicsManager::ElectronicsManager()
@@ -26,14 +26,14 @@ void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component)
     }
 
     // Assign a unique ID before inserting
-    component->_setId(_generateId());
+    component->m_id = _generateId();
 
-    const ComponentType type = component->type();
+    const ElectronicComponent::Type type = component->type();
     ec_vector& components = m_componentMap[type];
     auto it = find_if(
         components.begin(),
         components.end(),
-        [&component](const auto& comp) { return comp->id() == component->id(); }
+        [&component](const auto& comp) { return comp->ID() == component->ID(); }
     );
 
     if (it == components.end()) {
@@ -44,11 +44,11 @@ void ElectronicsManager::addComponent(unique_ptr<ElectronicComponent> component)
     }
 }
 
-bool ElectronicsManager::removeComponent(componentId id)
+bool ElectronicsManager::removeComponent(ComponentID id)
 {
     FoundComponent found = _findComponentById(id);
     if (found.found()) {
-        const ComponentType type = found.component->type();
+        const ElectronicComponent::Type type = found.component->type();
         ec_vector &components = m_componentMap[type];
         components.erase(found.iterator);
         return true;
@@ -57,13 +57,13 @@ bool ElectronicsManager::removeComponent(componentId id)
     return false;
 }
 
-ElectronicComponent* ElectronicsManager::getComponent(componentId id)
+ElectronicComponent* ElectronicsManager::getComponent(ComponentID id)
 {
     FoundComponent found = _findComponentById(id);
     return found.found() ? found.component : nullptr;
 }
 
-void ElectronicsManager::getAllComponentsByType(ComponentType type, vector<ElectronicComponent *> &outComponents) const
+void ElectronicsManager::getAllComponentsByType(ElectronicComponent::Type type, vector<ElectronicComponent *> &outComponents) const
 {
     auto it = m_componentMap.find(type);
     if (it != m_componentMap.end()) {
@@ -81,7 +81,7 @@ void ElectronicsManager::getAllComponents(vector<ElectronicComponent *> &outComp
     }
 }
 
-ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(componentId id)
+ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(ComponentID id)
 {
     ElectronicsManager::FoundComponent result = {};
 
@@ -89,7 +89,7 @@ ElectronicsManager::FoundComponent ElectronicsManager::_findComponentById(compon
         auto it = find_if(
             components.begin(),
             components.end(),
-            [id](const auto& comp) { return comp->id() == id; }
+            [id](const auto& comp) { return comp->ID() == id; }
         );
 
         if (it != components.end()) {

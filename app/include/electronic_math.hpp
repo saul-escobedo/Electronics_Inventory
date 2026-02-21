@@ -1,6 +1,6 @@
 #pragma once
 
-#include "electronic_components.hpp"
+#include "electrical/ElectronicComponents.hpp"
 #include <vector>
 #include <stdexcept>
 

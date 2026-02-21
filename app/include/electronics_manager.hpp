@@ -1,6 +1,6 @@
 #pragma once
 
-#include "electronic_components.hpp"
+#include "electrical/ElectronicComponent.hpp"
 #include <memory>
 #include <vector>
 #include <map>
@@ -10,6 +10,8 @@
 using std::vector, std::unique_ptr, std::unordered_map, std::uint64_t;
 
 namespace ecim {
+    // The Electronics Manager will be replaced with the official database API
+    // because persistent storage will be managed by SQLite under the hood
     class ElectronicsManager {
         using ec_vector = vector<unique_ptr<ElectronicComponent>>;
 
@@ -20,11 +22,11 @@ namespace ecim {
         static ElectronicsManager& instance();
 
         void addComponent(unique_ptr<ElectronicComponent> component);
-        bool removeComponent(componentId id);
+        bool removeComponent(ComponentID id);
 
-        ElectronicComponent* getComponent(componentId id);
+        ElectronicComponent* getComponent(ComponentID id);
 
-        void getAllComponentsByType(ComponentType type, vector<ElectronicComponent*>& outComponents) const;
+        void getAllComponentsByType(ElectronicComponent::Type type, vector<ElectronicComponent*>& outComponents) const;
         void getAllComponents(vector<ElectronicComponent*>& outComponents) const;
         private:
 
@@ -35,10 +37,10 @@ namespace ecim {
             bool found() const { return component != nullptr; }
         };
 
-        FoundComponent _findComponentById(componentId id);
+        FoundComponent _findComponentById(ComponentID id);
 
         uint64_t _generateId();
-        unordered_map<ComponentType, ec_vector> m_componentMap;
+        unordered_map<ElectronicComponent::Type, ec_vector> m_componentMap;
         uint64_t m_currentId;
     };
 };

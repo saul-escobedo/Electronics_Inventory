@@ -1,19 +1,18 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <stdexcept>
-#include "electronic_components.hpp"
 #include "electronics_manager.hpp"
 #include "electronic_math.hpp"
 
 using namespace ecim;
 
 // ── Helper: build a ComponentBaseConfig quickly ──────────────────────────────
-static ComponentBaseConfig cfg(
+static ElectronicComponent::BaseConfig cfg(
     const string& name,
     const string& mfg, const string& pn, const string& desc,
     const ElectronicRating& rating, size_t qty = 1)
 {
-    return ComponentBaseConfig{rating, name, mfg, pn, desc, qty};
+    return ElectronicComponent::BaseConfig{rating, name, mfg, pn, desc, qty};
 }
 
 static const ElectronicRating kDefaultRating{5.0, 0.01, 0.05, 0.05};
@@ -50,14 +49,14 @@ TEST(ComponentConstruction, Diode) {
     EXPECT_NEAR(d1.forwardVoltage(), 0.7, 1e-9);
 }
 
-TEST(ComponentConstruction, Transistor) {
-    Transistor t1(cfg("T1", "TransCo", "T-NPN-1", "NPN transistor", kDefaultRating), 100.0);
+TEST(ComponentConstruction, BJTransistor) {
+    BJTransistor t1(cfg("T1", "TransCo", "T-NPN-1", "NPN transistor", kDefaultRating), 100.0);
     EXPECT_EQ(t1.name(), "T1");
     EXPECT_NEAR(t1.gain(), 100.0, 1e-9);
 }
 
-TEST(ComponentConstruction, Mosfet) {
-    Mosfet m1(cfg("M1", "MosCo", "M-NMOS-1", "N-MOSFET", kDefaultRating), 2.5);
+TEST(ComponentConstruction, FETransistor) {
+    FETransistor m1(cfg("M1", "MosCo", "M-NMOS-1", "N-MOSFET", kDefaultRating), 2.5);
     EXPECT_EQ(m1.name(), "M1");
     EXPECT_NEAR(m1.thresholdVoltage(), 2.5, 1e-9);
 }
@@ -123,20 +122,20 @@ TEST(ElectronicsManager, AddRetrieveAndStress) {
     const size_t base = baseline.size();
 
     std::vector<ElectronicComponent*> base_res;
-    mgr.getAllComponentsByType(ComponentType::Resistor, base_res);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Resistor, base_res);
     const size_t base_r = base_res.size();
 
     // Add one of every type
-    mgr.addComponent(std::make_unique<Resistor>  (cfg("R2",  "Vishay",   "V-RES-4K7",  "4.7k resistor",   kDefaultRating, 5), 4700.0,  0.01));
-    mgr.addComponent(std::make_unique<Resistor>  (cfg("R3",  "Yageo",    "RC-10K",     "10k resistor",    kDefaultRating, 3), 10000.0, 0.05));
-    mgr.addComponent(std::make_unique<Resistor>  (cfg("R4",  "KOA",      "RK-47K",     "47k resistor",    kDefaultRating, 2), 47000.0, 0.05));
-    mgr.addComponent(std::make_unique<Capacitor> (cfg("C2",  "Murata",   "M-CAP-10n",  "10nF cap",        kDefaultRating, 10), "Ceramic",      10e-9));
-    mgr.addComponent(std::make_unique<Capacitor> (cfg("C3",  "KEMET",    "K-CAP-100u", "100uF electro",   kDefaultRating, 4), "Electrolytic", 100e-6));
-    mgr.addComponent(std::make_unique<Inductor>  (cfg("L2",  "CoilCo",   "L-100uH",    "100uH inductor",  kDefaultRating, 2), 100e-6));
-    mgr.addComponent(std::make_unique<Inductor>  (cfg("L3",  "CoilCo",   "L-1mH",      "1mH inductor",    kDefaultRating, 1), 1e-3));
-    mgr.addComponent(std::make_unique<Diode>     (cfg("D2",  "DiodeInc", "D-1N5819",   "Schottky diode",  kDefaultRating, 6), 0.3, "Schottky"));
-    mgr.addComponent(std::make_unique<Transistor>(cfg("T2",  "TransCo",  "T-PNP-1",    "PNP transistor",  kDefaultRating, 3), 80.0));
-    mgr.addComponent(std::make_unique<Mosfet>    (cfg("M2",  "MosCo",    "M-IRF540",   "Power N-MOSFET",  kDefaultRating, 2), 4.0));
+    mgr.addComponent(std::make_unique<Resistor>     (cfg("R2",  "Vishay",   "V-RES-4K7",  "4.7k resistor",   kDefaultRating, 5), 4700.0,  0.01));
+    mgr.addComponent(std::make_unique<Resistor>     (cfg("R3",  "Yageo",    "RC-10K",     "10k resistor",    kDefaultRating, 3), 10000.0, 0.05));
+    mgr.addComponent(std::make_unique<Resistor>     (cfg("R4",  "KOA",      "RK-47K",     "47k resistor",    kDefaultRating, 2), 47000.0, 0.05));
+    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C2",  "Murata",   "M-CAP-10n",  "10nF cap",        kDefaultRating, 10), "Ceramic",      10e-9));
+    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C3",  "KEMET",    "K-CAP-100u", "100uF electro",   kDefaultRating, 4), "Electrolytic", 100e-6));
+    mgr.addComponent(std::make_unique<Inductor>     (cfg("L2",  "CoilCo",   "L-100uH",    "100uH inductor",  kDefaultRating, 2), 100e-6));
+    mgr.addComponent(std::make_unique<Inductor>     (cfg("L3",  "CoilCo",   "L-1mH",      "1mH inductor",    kDefaultRating, 1), 1e-3));
+    mgr.addComponent(std::make_unique<Diode>        (cfg("D2",  "DiodeInc", "D-1N5819",   "Schottky diode",  kDefaultRating, 6), 0.3, "Schottky"));
+    mgr.addComponent(std::make_unique<BJTransistor> (cfg("T2",  "TransCo",  "T-PNP-1",    "PNP transistor",  kDefaultRating, 3), 80.0));
+    mgr.addComponent(std::make_unique<FETransistor>     (cfg("M2",  "MosCo",    "M-IRF540",   "Power N-MOSFET",  kDefaultRating, 2), 4.0));
     mgr.addComponent(std::make_unique<IntegratedCircuit>(cfg("IC2", "ICMaker", "IC-NE556", "Dual timer IC", kDefaultRating, 1), 14, 5.0, 4.0, 2.0));
 
     std::vector<ElectronicComponent*> all;
@@ -144,19 +143,19 @@ TEST(ElectronicsManager, AddRetrieveAndStress) {
     EXPECT_EQ(all.size(), base + 11);
 
     std::vector<ElectronicComponent*> mgr_resistors;
-    mgr.getAllComponentsByType(ComponentType::Resistor, mgr_resistors);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Resistor, mgr_resistors);
     EXPECT_EQ(mgr_resistors.size(), base_r + 3);
 
     std::vector<ElectronicComponent*> mgr_caps;
-    mgr.getAllComponentsByType(ComponentType::Capacitor, mgr_caps);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Capacitor, mgr_caps);
     EXPECT_EQ(mgr_caps.size(), static_cast<size_t>(2));
 
     std::vector<ElectronicComponent*> mgr_inductors;
-    mgr.getAllComponentsByType(ComponentType::Inductor, mgr_inductors);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Inductor, mgr_inductors);
     EXPECT_EQ(mgr_inductors.size(), static_cast<size_t>(2));
 
     std::vector<ElectronicComponent*> mgr_mosfets;
-    mgr.getAllComponentsByType(ComponentType::Mosfet, mgr_mosfets);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Mosfet, mgr_mosfets);
     EXPECT_EQ(mgr_mosfets.size(), static_cast<size_t>(1));
 
     // ── Series resistance on the 3 resistors just added ──────────────────────
@@ -177,7 +176,7 @@ TEST(ElectronicsManager, AddRetrieveAndStress) {
     }
 
     std::vector<ElectronicComponent*> stress_res;
-    mgr.getAllComponentsByType(ComponentType::Resistor, stress_res);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::Resistor, stress_res);
     EXPECT_EQ(stress_res.size(), base_r + 3 + 500);
 
     std::vector<ElectronicComponent*> all_after;
