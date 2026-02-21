@@ -18,8 +18,7 @@ These are the project's conventions for C++:
 - `const` global variables and macros should be formatted as `SCREAMING_SNAKE_CASE`: `LIGHT_GRAY`.
 - enum constants should be formatted as `PascalCase`: `CamelusBactrianus`
 - Avoid inventing acronyms or abbreviations especially for a name of multiple words - like `tp` for `texturePack`.
-
-- Use tab characters instead of spaces for indentation. The recommended tab width is 4.
+- Use space characters for indentation; the identation width is 4.
 
 This is an example of what the code conventions look like in practice:
 
@@ -31,30 +30,30 @@ constexpr double PI = 3.14159;
 enum class PizzaToppings { HamAndPineapple, OreoAndKetchup };
 
 struct Person {
-	QString name;
-	QDateTime dateOfBirth;
+    QString name;
+    QDateTime dateOfBirth;
 
-	long daysOld() const { return dateOfBirth.daysTo(QDateTime::currentDateTime()); }
+    long daysOld() const { return dateOfBirth.daysTo(QDateTime::currentDateTime()); }
 };
 
 class ImportantClass {
 public:
-	void incrementCounter() {
-		if (m_counter + 1 > MAX_COUNTER_VALUE)
-			throw std::runtime_error("Counter has reached limit!");
+    void incrementCounter() {
+        if (m_counter + 1 > MAX_COUNTER_VALUE)
+            throw std::runtime_error("Counter has reached limit!");
 
-		++m_counter;
-	}
+        ++m_counter;
+    }
 
-	int counter() const { return m_counter; }
+    int counter() const { return m_counter; }
 
 private:
-	void _do_something() {
-		m_counter += 2;
-	}
-	
-	static constexpr int MAX_COUNTER_VALUE = 100;
-	int m_counter;
+    void _do_something() {
+        m_counter += 2;
+    }
+    
+    static constexpr int MAX_COUNTER_VALUE = 100;
+    int m_counter;
 };
 
 ImportantClass importantClassInstance;
