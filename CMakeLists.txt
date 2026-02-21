@@ -7,7 +7,20 @@ project(ecim VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+
+# may give issues if Linux [START]
+if(MSVC)
+    # Qt6 requires strict conformance mode and correct __cplusplus value on MSVC.
+    # /FS forces synchronous PDB writes to avoid C1041 races during parallel builds.
+    add_compile_options(/Zc:__cplusplus /permissive- /FS)
+endif()
+# may give issues if Linux [END]
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Enable CTest at the root so `ctest --test-dir build` works
+include(CTest)
+enable_testing()
 
 # Include the app implementation subdirectory
 add_subdirectory(app)
