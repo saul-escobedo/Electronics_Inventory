@@ -29,23 +29,35 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 option(ENABLE_TESTING "Enable building tests" ON)
 
 if(ENABLE_TESTING)
-	add_executable(test_components 
-		src/electronic_components.cpp
-		src/electronics_manager.cpp
-		tests/test_components.cpp 
+	include(FetchContent)
+
+	FetchContent_Declare(
+		googletest
+		URL https://github.com/google/googletest/archive/refs/heads/main.zip
+		# Ensure extracted files get current timestamps to avoid CMP0135 warning
+		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	)
+	# Prevent overriding the parent project's compiler/linker settings on Windows
+	set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+	FetchContent_MakeAvailable(googletest)
+
+	# Create test executable; linking to the OBJECT library includes its objects
+	# and transitively propagates Qt6 interface dependencies (PUBLIC linkage)
+	add_executable(my_tests
+		tests/test_components.cpp
 	)
 
-	target_include_directories(test_components PRIVATE include)
-	set_target_properties(test_components PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+	target_include_directories(my_tests PRIVATE include)
+	set_target_properties(my_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
 
-	# Enable CTest and register the test executable so `ctest`/`cmake --build --target check` can run it
-	include(CTest)
-	enable_testing()
-	add_test(NAME test_components COMMAND test_components)
+	target_link_libraries(my_tests PRIVATE ${PROJECT_NAME} gtest gtest_main)
+
+	# Register the test executable with CTest (enable_testing is called in the root CMakeLists)
+	add_test(NAME my_tests COMMAND my_tests)
 
 	# Convenience target to run ctest with output on failure
 	add_custom_target(check
 		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-		DEPENDS test_components
+		DEPENDS my_tests
 	)
 endif()

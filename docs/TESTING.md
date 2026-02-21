@@ -1,21 +1,28 @@
 # Testing
 
 Configure the project:
-```powershell
+```terminal
 cmake -S . -B build
 ```
 
 Build the test target:
-```powershell
+```terminal
 cmake --build build --config Debug --target test_components
 ```
 
 Run tests via CTest:
-```powershell
+```terminal
 ctest --test-dir build --build-config Debug --output-on-failure
 ```
 
 Or run the executable directly to see per-assertion output:
-```powershell
-cmd /c build\app\Debug\test_components.exe
+```terminal
+build\app\my_tests.exe
+```
+
+NEW - Running GoogleTest
+```terminal
+cmake -S . -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+ninja -C build -j 8
+build\app\my_tests.exe 
 ```

@@ -1,4 +1,4 @@
-# Build & run (Windows)
+﻿# Build & run (Windows)
 
 1. Create build directory and configure
 
@@ -16,7 +16,9 @@ cmake --build build --config Release
 3. Run the executable
 
 ```powershell
-.\build\Release\Electronics_Inventory.exe
+build\ecim.exe
+#or
+build\app\my_tests.exe
 ```
 
 Ninja (faster incremental builds):
@@ -32,11 +34,11 @@ cmake --build build -j 8
 ```
 
 Notes:
-- If you used a single-config generator (Ninja/Makefiles) the EXE may be at `build\Electronics_Inventory.exe`.
+- If you used a single-config generator (Ninja/Makefiles) the EXE may be at `build\ecim.exe`.
 - If you can't find the EXE, run:
 
 ```powershell
-Get-ChildItem build -Recurse -Filter Electronics_Inventory.exe
+Get-ChildItem build -Recurse -Filter ecim.exe
 ```
 - Ensure your compiler and CMake are installed and on PATH (or use a Developer Command Prompt for Visual Studio).
 - Replace `8` with your core count or use `-j 0` to let Ninja decide.
@@ -58,14 +60,16 @@ cmake --build build --config Release
 3. Run the executable
 
 ```powershell
-.\build\Release\Electronics_Inventory.exe
+build\ecim.exe
+#or 
+build\app\my_tests.exe
 ```
 
 Notes:
-- If you used a single-config generator (Ninja/Makefiles) the EXE may be at `build\Electronics_Inventory.exe`.
+- If you used a single-config generator (Ninja/Makefiles) the EXE may be at `ecim.exe`.
 - If you can't find the EXE, run:
 
 ```powershell
-Get-ChildItem build -Recurse -Filter Electronics_Inventory.exe
+Get-ChildItem build -Recurse ecim.exe
 ```
 - Ensure your compiler and CMake are installed and on `PATH` (or use a Developer Command Prompt for Visual Studio).
