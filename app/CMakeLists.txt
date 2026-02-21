@@ -11,7 +11,6 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 # more intentional.
 set(APP_SOURCES
 	src/Application.cpp
-	src/electronic_components.cpp
 	src/electronics_manager.cpp
 )
 
