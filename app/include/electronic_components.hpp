@@ -5,7 +5,7 @@
 
 using std::string, std::invalid_argument;
 
-// electronic inventory project
+// electronic components inventory manager
 namespace ecim {
 
     enum class ComponentType {
