@@ -97,6 +97,12 @@ namespace ecim {
 
         void addQuantity(size_t amount) { m_quantity += amount; }
 
+        void removeQuantity(size_t amount) {
+            if (amount > m_quantity)
+                throw invalid_argument("Cannot remove more quantity than available");
+            m_quantity -= amount;
+        }
+
     private:
         ElectronicRating m_rating;
         string m_name;
