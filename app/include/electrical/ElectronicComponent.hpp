@@ -22,8 +22,13 @@ namespace ecim {
 
     using ComponentID = size_t;
 
+    // forward declaration of the manager
+    class ElectronicsManager;
+
     // Base class of all modeled electrical components
     class ElectronicComponent {
+        // only the manager can set the component internal id;
+        friend class ElectronicsManager;
     public:
         // Type of electronic component. Any new type of component
         // (like a new dervied class) must be added here
@@ -89,6 +94,8 @@ namespace ecim {
         const ElectronicRating &rating() const { return m_rating; }
         const ComponentID ID() const { return m_id; }
         size_t quantity() const { return m_quantity; }
+
+        void addQuantity(size_t amount) { m_quantity += amount; }
 
     private:
         ElectronicRating m_rating;
