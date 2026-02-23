@@ -17,6 +17,10 @@ namespace ecim {
         Decending
     };
 
+    ///@brief Mass query settings.
+    ///
+    ///This struct is used to specify additional settings for mass queries,
+    ///such as pagination and sorting, when retrieving components from the database.
     struct MassQuery {
         /// @brief Establish pagination parameters like page size and current
         /// page.

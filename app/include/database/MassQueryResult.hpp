@@ -6,9 +6,16 @@
 #include "electrical/ElectronicComponent.hpp"
 
 namespace ecim {
+    /// @brief The MassQueryResult struct represents a results of a mass query
+    /// executed on the database.
+    ///
+    /// Each instance contains a list of electronic components matching the
+    /// criteria specified by the query, as well as metadata such as the total
+    /// number of items returned, and the total number of pages that could be
+    /// obtained if pagination is enabled.
     struct MassQueryResult {
         std::vector<std::unique_ptr<ElectronicComponent>> items;
-        int totalItems;
-        int totalPages;
+        size_t totalItems;
+        size_t totalPages;
     };
 }
