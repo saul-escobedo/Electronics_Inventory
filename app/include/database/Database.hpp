@@ -1,0 +1,72 @@
+#pragma once
+
+#include "MassQuery.hpp"
+#include "MassQueryResult.hpp"
+#include "Transaction.hpp"
+
+#include "electrical/ElectronicComponents.hpp"
+
+namespace ecim {
+    /// Electrical component database API. This class is the interface
+    /// for database implmentations.
+    ///
+    /// @note Typically, SQLite is the primary backend, but for testing, a
+    /// "Mock" backend can be used.
+    class Database {
+    public:
+        /// @brief Gracefully save and close the database.
+        ///
+        /// @throws DatabaseException if database did not shutdown
+        /// gracefully.
+        virtual void shutdown() = 0;
+
+        /// @brief Create a new component.
+        ///
+        /// @param newComponent New component information
+        ///
+        /// @return ID of the new component
+        virtual ComponentID addComponent(
+            const ElectronicComponent& newComponent) = 0;
+
+        /// @brief Remove a component
+        ///
+        /// @param id ID of component to be removed
+        ///
+        /// @return unique_ptr<ElectronicComponent> containg information
+        /// that was removed
+        virtual std::unique_ptr<ElectronicComponent> removeComponent(
+            ComponentID id) = 0;
+
+        /// @brief Update a component
+        ///
+        /// @param id ID of component to be updated
+        /// @param updatedComponent New component information
+        virtual void editComponent(
+            ComponentID id,
+            const ElectronicComponent& updatedComponent) = 0;
+
+        /// @brief Read a component, based off of its ID
+        ///
+        /// @param id ID of component to be read
+        ///
+        /// @return unique_ptr<ElectronicComponent> containing the component
+        /// information
+        virtual std::unique_ptr<ElectronicComponent> getComponent(
+            ComponentID id) = 0;
+
+        virtual MassQueryResult getAllComponentsByType(
+            ElectronicComponent::Type type,
+            MassQuery querySettings) = 0;
+
+        /// @brief Start a database transaction.
+        ///
+        /// @throws DatabaseException if database cannot initiate a
+        /// transaction.
+        ///
+        /// @return unique_ptr<Transaction> of the transaction instance
+        ///
+        /// @note call `tx->commit()` if changes are meant to be saved. When
+        /// the instance is destroyed, changes are reverted.
+        virtual std::unique_ptr<Transaction> startTransaction() = 0;
+    };
+}
