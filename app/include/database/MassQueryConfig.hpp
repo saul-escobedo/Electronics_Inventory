@@ -42,8 +42,8 @@ namespace ecim {
             std::string,
             double,
             size_t,
-            std::pair<double, double>, // For InRange
-            std::pair<size_t, size_t>  // For InRange
+            std::pair<double, double>, // For InRange operations
+            std::pair<size_t, size_t>  // For InRange operations
         > value;
     };
 
