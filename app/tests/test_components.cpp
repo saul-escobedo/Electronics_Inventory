@@ -30,9 +30,9 @@ TEST(ComponentConstruction, Resistor) {
 }
 
 TEST(ComponentConstruction, Capacitor) {
-    Capacitor c1(cfg("C1", "Murata", "M-CAP-1uF", "1uF cap", kDefaultRating), "Ceramic", 1e-6);
+    Capacitor c1(cfg("C1", "Murata", "M-CAP-1uF", "1uF cap", kDefaultRating), Capacitor::Type::Ceramic, 1e-6);
     EXPECT_EQ(c1.name(),          "C1");
-    EXPECT_EQ(c1.capacitorType(), "Ceramic");
+    EXPECT_EQ(c1.capacitorType(), Capacitor::Type::Ceramic);
     EXPECT_NEAR(c1.capacitance(), 1e-6, 1e-18);
 }
 
@@ -43,9 +43,9 @@ TEST(ComponentConstruction, Inductor) {
 }
 
 TEST(ComponentConstruction, Diode) {
-    Diode d1(cfg("D1", "DiodeInc", "D-1N4148", "Signal diode", kDefaultRating), 0.7, "Signal");
+    Diode d1(cfg("D1", "DiodeInc", "D-1N4148", "Signal diode", kDefaultRating), 0.7, Diode::Type::Regular);
     EXPECT_EQ(d1.name(),      "D1");
-    EXPECT_EQ(d1.diodeType(), "Signal");
+    EXPECT_EQ(d1.diodeType(), Diode::Type::Regular);
     EXPECT_NEAR(d1.forwardVoltage(), 0.7, 1e-9);
 }
 
@@ -102,7 +102,7 @@ TEST(Validation, NegativeResistanceThrows) {
 }
 
 TEST(Validation, NegativeCapacitanceThrows) {
-    EXPECT_THROW((Capacitor{cfg("X", "M", "P", "", kDefaultRating), "Ceramic", -1e-6}), std::exception);
+    EXPECT_THROW((Capacitor{cfg("X", "M", "P", "", kDefaultRating), Capacitor::Type::Ceramic, -1e-6}), std::exception);
 }
 
 TEST(Validation, ZeroPinCountThrows) {
@@ -129,11 +129,11 @@ TEST(ElectronicsManager, AddRetrieveAndStress) {
     mgr.addComponent(std::make_unique<Resistor>     (cfg("R2",  "Vishay",   "V-RES-4K7",  "4.7k resistor",   kDefaultRating, 5), 4700.0,  0.01));
     mgr.addComponent(std::make_unique<Resistor>     (cfg("R3",  "Yageo",    "RC-10K",     "10k resistor",    kDefaultRating, 3), 10000.0, 0.05));
     mgr.addComponent(std::make_unique<Resistor>     (cfg("R4",  "KOA",      "RK-47K",     "47k resistor",    kDefaultRating, 2), 47000.0, 0.05));
-    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C2",  "Murata",   "M-CAP-10n",  "10nF cap",        kDefaultRating, 10), "Ceramic",      10e-9));
-    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C3",  "KEMET",    "K-CAP-100u", "100uF electro",   kDefaultRating, 4), "Electrolytic", 100e-6));
+    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C2",  "Murata",   "M-CAP-10n",  "10nF cap",        kDefaultRating, 10), Capacitor::Type::Ceramic, 10e-9));
+    mgr.addComponent(std::make_unique<Capacitor>    (cfg("C3",  "KEMET",    "K-CAP-100u", "100uF electro",   kDefaultRating, 4), Capacitor::Type::AluminumElectrolytic, 100e-6));
     mgr.addComponent(std::make_unique<Inductor>     (cfg("L2",  "CoilCo",   "L-100uH",    "100uH inductor",  kDefaultRating, 2), 100e-6));
     mgr.addComponent(std::make_unique<Inductor>     (cfg("L3",  "CoilCo",   "L-1mH",      "1mH inductor",    kDefaultRating, 1), 1e-3));
-    mgr.addComponent(std::make_unique<Diode>        (cfg("D2",  "DiodeInc", "D-1N5819",   "Schottky diode",  kDefaultRating, 6), 0.3, "Schottky"));
+    mgr.addComponent(std::make_unique<Diode>        (cfg("D2",  "DiodeInc", "D-1N5819",   "Schottky diode",  kDefaultRating, 6), 0.3, Diode::Type::Schottky));
     mgr.addComponent(std::make_unique<BJTransistor> (cfg("T2",  "TransCo",  "T-PNP-1",    "PNP transistor",  kDefaultRating, 3), 80.0));
     mgr.addComponent(std::make_unique<FETransistor>     (cfg("M2",  "MosCo",    "M-IRF540",   "Power N-MOSFET",  kDefaultRating, 2), 4.0));
     mgr.addComponent(std::make_unique<IntegratedCircuit>(cfg("IC2", "ICMaker", "IC-NE556", "Dual timer IC", kDefaultRating, 1), 14, 5.0, 4.0, 2.0));
@@ -228,16 +228,16 @@ TEST(EcMath, ParallelResistance) {
 // ── ecmath — capacitors ───────────────────────────────────────────────────────
 
 TEST(EcMath, CapacitorsParallel) {
-    Capacitor ca(cfg("CA", "T", "T", "", kDefaultRating), "Ceramic", 10e-6);
-    Capacitor cb(cfg("CB", "T", "T", "", kDefaultRating), "Ceramic", 40e-6);
+    Capacitor ca(cfg("CA", "T", "T", "", kDefaultRating), Capacitor::Type::Ceramic, 10e-6);
+    Capacitor cb(cfg("CB", "T", "T", "", kDefaultRating), Capacitor::Type::Ceramic, 40e-6);
     vector<const Capacitor*> cp = {&ca, &cb};
     // 10u + 40u = 50u
     EXPECT_NEAR(ecmath::computeCapacitorsInParallel(cp), 50e-6, 1e-18);
 }
 
 TEST(EcMath, CapacitorsSeries) {
-    Capacitor ca(cfg("CA2", "T", "T", "", kDefaultRating), "Ceramic", 10e-6);
-    Capacitor cb(cfg("CB2", "T", "T", "", kDefaultRating), "Ceramic", 40e-6);
+    Capacitor ca(cfg("CA2", "T", "T", "", kDefaultRating), Capacitor::Type::Ceramic, 10e-6);
+    Capacitor cb(cfg("CB2", "T", "T", "", kDefaultRating), Capacitor::Type::Ceramic, 40e-6);
     vector<const Capacitor*> cp = {&ca, &cb};
     // 1/(1/10u + 1/40u) = 8u
     EXPECT_NEAR(ecmath::computeCapacitorsInSeries(cp), 8e-6, 1e-18);

@@ -13,6 +13,7 @@ namespace ecim {
         enum class Type : size_t {
             AluminumPolymer,
             AluminumElectrolytic,
+            Ceramic,
             ElectricDoubleLayer, // Supercapacitors
             Film,
             Mica,
