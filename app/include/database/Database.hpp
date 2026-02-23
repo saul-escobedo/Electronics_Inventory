@@ -54,9 +54,25 @@ namespace ecim {
         virtual std::unique_ptr<ElectronicComponent> getComponent(
             ComponentID id) = 0;
 
+        /// @brief Returns all components of any type that match the provided
+        /// mass query.
+        ///
+        /// @param querySettings Additional settings for the mass query.
+        ///
+        /// @return MassQueryResult containing the matching components.
+        virtual MassQueryResult getAllComponents(
+            MassQuery querySettings = MassQuery()) = 0;
+
+        /// @brief Returns all components of a specific type that match the
+        /// provided mass query.
+        ///
+        /// @param type Type of components to be retrieved.
+        /// @param querySettings Additional settings for the mass query.
+        ///
+        /// @return MassQueryResult containing the matching components.
         virtual MassQueryResult getAllComponentsByType(
             ElectronicComponent::Type type,
-            MassQuery querySettings) = 0;
+            MassQuery querySettings = MassQuery()) = 0;
 
         /// @brief Start a database transaction.
         ///
