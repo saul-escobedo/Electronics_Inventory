@@ -138,7 +138,9 @@ namespace ecim {
         string m_manufacturer;
         string m_partNumber;
         string m_description;
-        ComponentID m_id; // unique identifier assigned by the manager
+        // unique identifier assigned by the manager; equals to 0 if no
+        // assigned yet.
+        ComponentID m_id = 0;
         size_t m_quantity;
     };
 }
