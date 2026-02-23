@@ -5,21 +5,25 @@
 namespace ecim {
     // Bipolar Junction Transistor
     class BJTransistor final : public ElectronicComponent {
-        public:
-            BJTransistor(
-                const BaseConfig& config,
-                double gain
-            )
-                : ElectronicComponent(config, Type::Transistor),
-                m_gain(gain)
-            {
-                if (gain < 0)
-                    throw invalid_argument("Gain cannot be negative");
-            }
+    public:
+        enum class Property : ComponentProperty {
+            Gain = static_cast<ComponentProperty>(ElectronicComponent::Property::End)
+        };
 
-            double gain() const { return m_gain; }
+        BJTransistor(
+            const BaseConfig& config,
+            double gain
+        )
+            : ElectronicComponent(config, Type::Transistor),
+            m_gain(gain)
+        {
+            if (gain < 0)
+                throw invalid_argument("Gain cannot be negative");
+        }
 
-        private:
-            double m_gain;
+        double gain() const { return m_gain; }
+
+    private:
+        double m_gain;
     };
 }

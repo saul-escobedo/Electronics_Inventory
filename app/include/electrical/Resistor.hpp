@@ -4,13 +4,17 @@
 
 namespace ecim {
     class Resistor final : public ElectronicComponent {
-        public:
+    public:
+        enum class Property : ComponentProperty {
+            Resistance = static_cast<ComponentProperty>(ElectronicComponent::Property::End),
+            ToleranceBand
+        };
+
         Resistor(
             const BaseConfig& config,
             double resistance,
             double toleranceBand
-        )
-            : ElectronicComponent(config, Type::Resistor),
+        ) : ElectronicComponent(config, Type::Resistor),
             m_resistance(resistance),
             m_toleranceBand(toleranceBand)
         {
@@ -23,7 +27,7 @@ namespace ecim {
         double resistance() const { return m_resistance; }
         double toleranceBand() const { return m_toleranceBand; }
 
-        private:
+    private:
             double m_resistance;
             double m_toleranceBand; // last band of the resistor color code, e.g., 5% = 0.05
     };

@@ -49,6 +49,10 @@ namespace ecim {
 
         // Enum containing all typical properties that are useful to sort or
         // filter by. Used for database querying.
+        //
+        // All derived classes with thier own custom properties MUST have their
+        // first entry equal to End! For example, see the resistor's class in
+        // Resistor.hpp
         enum class Property : ComponentProperty {
             ID,
             Name,
@@ -60,6 +64,10 @@ namespace ecim {
             VoltageRating,
             CurrentRating,
             PowerRating,
+
+            // This value must equal to the first entry of each derived class's
+            // properties enum.
+            End
         };
 
         // Basic properties of an electronic component. It is used to
