@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MassQuery.hpp"
+#include "MassQueryConfig.hpp"
 #include "MassQueryResult.hpp"
 #include "Transaction.hpp"
 
@@ -61,7 +61,7 @@ namespace ecim {
         ///
         /// @return MassQueryResult containing the matching components.
         virtual MassQueryResult getAllComponents(
-            MassQuery querySettings = MassQuery()) = 0;
+            const MassQueryConfig& queryConfig = MassQueryConfig()) = 0;
 
         /// @brief Returns all components of a specific type that match the
         /// provided mass query.
@@ -72,7 +72,7 @@ namespace ecim {
         /// @return MassQueryResult containing the matching components.
         virtual MassQueryResult getAllComponentsByType(
             ElectronicComponent::Type type,
-            MassQuery querySettings = MassQuery()) = 0;
+            const MassQueryConfig& queryConfig = MassQueryConfig()) = 0;
 
         /// @brief Start a database transaction.
         ///
