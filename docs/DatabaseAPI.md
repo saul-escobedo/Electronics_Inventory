@@ -80,7 +80,7 @@ Updating the component's properties can usually follow this flow:
 auto component = db->getComponent(64);
 
 // We've had gain more stock if this component, let's increase its quantity
-component->addQuantity(5)
+component->addQuantity(5);
 
 // Let's save this back to the database
 db->editComponent(component->ID(), *component);
@@ -90,7 +90,7 @@ The ID of the component must be explicitly set to avoid ambigutity and unexpecte
 
 ## Mass Quieries
 
-If we need to get a list of components from the database, we'd use *Mass Quiries*. There are several parameters that could be set in order to refine the search and presentation of the items, and it will return a `MassQueryResult` containing statistics and the items themselves.
+If we need to get a list of components from the database, we'd use *Mass Queries*. There are several parameters that could be set in order to refine the search and presentation of the items, and it will return a `MassQueryResult` containing statistics and the items themselves.
 
 For instance, if we want to get a list of resistors, we'd do:
 
