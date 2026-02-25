@@ -4,9 +4,9 @@ This document will explain the basics on how to use the database using the appli
 
 ## Introduction & Purpose
 
-For this project, the Database interface is abstracted by using an abstract interface class (found in `Database.hpp`). The advantage of this abstraction is to have a clear separation of the application's layers between the business logic and database, and it provides a unifed way of using the database throughout the application.
+For this project, database access is abstracted through an interface defined in `Database.hpp`. This abstraction cleanly separates the business logic from the persistence layer, ensuring that the rest of the application interacts with the database through a unified API.
 
-Additionally, it future proofs the application, so this makes the program able to use other database implementations (like MYSql or Postgres). Typically, SQLite is used as the primary database backend for local persistent storage, but, as an example, a "mock" backend could also be implemented for testing purposes.
+It also makes the system adaptable to future changes. While SQLite is currently used as the primary backend for local persistent storage, the interface allows alternative implementations such as MySQL, PostgreSQL, or a mock backend for testing while having minimal impact on the application code.
 
 ## API Structure
 
