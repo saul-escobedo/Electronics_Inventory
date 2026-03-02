@@ -4,21 +4,24 @@
 
 namespace ecim {
     class Inductor final : public ElectronicComponent {
-        public:
-            Inductor(
-                const BaseConfig& config,
-                double inductance
-            )
-                : ElectronicComponent(config, Type::Inductor),
-                m_inductance(inductance)
-            {
-                if (inductance < 0)
-                    throw invalid_argument("Inductance cannot be negative");
-            }
+    public:
+        enum class Property : ComponentProperty {
+            Inductance = static_cast<ComponentProperty>(ElectronicComponent::Property::End),
+        };
 
-            double inductance() const { return m_inductance; }
+        Inductor(
+            const BaseConfig& config,
+            double inductance
+        ) : ElectronicComponent(config, Type::Inductor),
+            m_inductance(inductance)
+        {
+            if (inductance < 0)
+                throw invalid_argument("Inductance cannot be negative");
+        }
 
-        private:
-            double m_inductance;
+        double inductance() const { return m_inductance; }
+
+    private:
+        double m_inductance;
     };
 }

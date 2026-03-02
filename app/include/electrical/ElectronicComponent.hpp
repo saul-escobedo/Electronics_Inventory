@@ -20,7 +20,11 @@ namespace ecim {
         }
     };
 
+    // Component identification for database querying.
     using ComponentID = size_t;
+
+    // Property identification for database querying.
+    using ComponentProperty = size_t;
 
     // forward declaration of the manager
     class ElectronicsManager;
@@ -29,21 +33,45 @@ namespace ecim {
     class ElectronicComponent {
         // only the manager can set the component internal id;
         friend class ElectronicsManager;
+
     public:
-        // Type of electronic component. Any new type of component
-        // (like a new dervied class) must be added here
+        // Type of electronic component. Any new type of component (like a new
+        // dervied class) must be added here.
         enum class Type {
             Resistor,
             Capacitor,
             Inductor,
             Diode,
-            Transistor,
-            Mosfet,
+            BJTransistor,
+            FETransistor,
             IntegratedCircuit
         };
 
-        // Basic properties of an electronic component. It is used
-        // to initialize a new component instance
+        // Enum containing all typical properties that are useful to sort or
+        // filter by. Used for database querying.
+        //
+        // All derived classes with thier own custom properties MUST have their
+        // first entry equal to End! For example, see the resistor's class in
+        // Resistor.hpp
+        enum class Property : ComponentProperty {
+            ID,
+            Name,
+            Manufacturer,
+            PartNumber,
+            Description,
+            Quantity,
+
+            VoltageRating,
+            CurrentRating,
+            PowerRating,
+
+            // This value must equal to the first entry of each derived class's
+            // properties enum.
+            End = 0xFFFF
+        };
+
+        // Basic properties of an electronic component. It is used to
+        // initialize a new component instance
         struct BaseConfig {
             ElectronicRating rating;
             string name;
@@ -110,7 +138,9 @@ namespace ecim {
         string m_manufacturer;
         string m_partNumber;
         string m_description;
-        ComponentID m_id; // unique identifier assigned by the manager
+        // unique identifier assigned by the manager; equals to 0 if not
+        // assigned yet.
+        ComponentID m_id = 0;
         size_t m_quantity;
     };
 }
