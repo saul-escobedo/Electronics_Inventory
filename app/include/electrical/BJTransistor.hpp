@@ -14,7 +14,7 @@ namespace ecim {
             const BaseConfig& config,
             double gain
         )
-            : ElectronicComponent(config, Type::Transistor),
+            : ElectronicComponent(config, Type::BJTransistor),
             m_gain(gain)
         {
             if (gain < 0)

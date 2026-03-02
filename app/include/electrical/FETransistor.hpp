@@ -14,7 +14,7 @@ namespace ecim {
             const BaseConfig& config,
             double thresholdVoltage
         )
-            : ElectronicComponent(config, Type::Mosfet),
+            : ElectronicComponent(config, Type::FETransistor),
             m_thresholdVoltage(thresholdVoltage)
         {
             if (thresholdVoltage < 0)

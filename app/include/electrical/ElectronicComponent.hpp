@@ -42,8 +42,8 @@ namespace ecim {
             Capacitor,
             Inductor,
             Diode,
-            Transistor,
-            Mosfet,
+            BJTransistor,
+            FETransistor,
             IntegratedCircuit
         };
 
