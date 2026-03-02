@@ -67,7 +67,7 @@ namespace ecim {
 
             // This value must equal to the first entry of each derived class's
             // properties enum.
-            End
+            End = 0xFFFF
         };
 
         // Basic properties of an electronic component. It is used to
