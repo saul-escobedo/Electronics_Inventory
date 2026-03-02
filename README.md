@@ -24,6 +24,7 @@ The following instructions are to help you develop and/or compile the project fr
 **Prerequisites**
 
 * Since the project depends on the Qt framework, you must have Qt version `6.2+` installed on your computer.
+* SQLite is the primary database implmenetation, so you must have SQLite3 installed.
 * CMake is the build system for configuring and managing compilation of the application; this project depends on CMake version `3.20+`.
 * `C++ 17` compatible toolchain (e.g. g++, clang, MSVC).
 
