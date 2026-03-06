@@ -41,11 +41,11 @@ if(ENABLE_TESTING)
     include(FetchContent)
 
     FetchContent_Declare(
-  googletest
-  URL https://github.com/google/googletest/archive/refs/heads/main.zip
-  # Ensure extracted files get current timestamps to avoid CMP0135 warning
-  DOWNLOAD_EXTRACT_TIMESTAMP TRUE
- )
+        googletest
+        URL https://github.com/google/googletest/archive/refs/heads/main.zip
+        # Ensure extracted files get current timestamps to avoid CMP0135 warning
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
     # Prevent overriding the parent project's compiler/linker settings on Windows
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
@@ -53,8 +53,8 @@ if(ENABLE_TESTING)
     # Create test executable; linking to the OBJECT library includes its objects
     # and transitively propagates Qt6 interface dependencies (PUBLIC linkage)
     add_executable(my_tests
-  tests/test_components.cpp
- )
+        tests/test_components.cpp
+    )
 
     target_include_directories(my_tests PRIVATE include)
     set_target_properties(my_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
@@ -66,7 +66,7 @@ if(ENABLE_TESTING)
 
     # Convenience target to run ctest with output on failure
     add_custom_target(check
-  COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-  DEPENDS my_tests
- )
+        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+        DEPENDS my_tests
+    )
 endif()
