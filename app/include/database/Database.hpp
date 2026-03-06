@@ -14,6 +14,11 @@ namespace ecim {
     /// "Mock" backend can be used.
     class Database {
     public:
+        /// @brief Initialize the database backend.
+        ///
+        /// @throws DatabaseException if database did not initialize correctly.
+        virtual void initialize() = 0;
+
         /// @brief Gracefully save and close the database.
         ///
         /// @throws DatabaseException if database did not shutdown
