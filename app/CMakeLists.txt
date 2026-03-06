@@ -52,21 +52,22 @@ if(ENABLE_TESTING)
 
     # Create test executable; linking to the OBJECT library includes its objects
     # and transitively propagates Qt6 interface dependencies (PUBLIC linkage)
-    add_executable(my_tests
+    add_executable(ecim_tests
         tests/test_components.cpp
+        tests/test_sqlitedb.cpp
     )
 
-    target_include_directories(my_tests PRIVATE include)
-    set_target_properties(my_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+    target_include_directories(ecim_tests PRIVATE include)
+    set_target_properties(ecim_tests PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
 
-    target_link_libraries(my_tests PRIVATE ${PROJECT_NAME} gtest gtest_main)
+    target_link_libraries(ecim_tests PRIVATE ${PROJECT_NAME} gtest gtest_main)
 
     # Register the test executable with CTest (enable_testing is called in the root CMakeLists)
-    add_test(NAME my_tests COMMAND my_tests)
+    add_test(NAME ecim_tests COMMAND ecim_tests)
 
     # Convenience target to run ctest with output on failure
     add_custom_target(check
         COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS my_tests
+        DEPENDS ecim_tests
     )
 endif()
