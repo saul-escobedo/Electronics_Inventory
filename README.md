@@ -6,6 +6,7 @@
 
 * [Description](#description)
 * [Build Instructions](#build-instructions)
+* [Python Integration](#python-integration)
 * [Project Structure](#project-structure)
 * [Licenses](#licenses)
 
@@ -26,6 +27,7 @@ The following instructions are to help you develop and/or compile the project fr
 * Since the project depends on the Qt framework, you must have Qt version `6.2+` installed on your computer.
 * CMake is the build system for configuring and managing compilation of the application; this project depends on CMake version `3.20+`.
 * `C++ 17` compatible toolchain (e.g. g++, clang, MSVC).
+* `Python 3.9+` for executing external integration scripts.
 
 **Installing Qt**
 
@@ -82,6 +84,16 @@ On Windows, run it in powershell:
 ```
 
 Planning to contribute? Be sure the read our [contributing guidelines](./CONTRIBUTING.md) to get up to speed on our workflow.
+
+## Python Integration
+
+The app can execute external Python scripts from C++ and supports both file-based and JSON-based communication.
+
+- CMake will auto-detect Python (`find_package(Python3 COMPONENTS Interpreter)`), then pass both project root and interpreter path to the app.
+- C++ bridge API: `app/include/integration/PythonScriptRunner.hpp`
+- Reference script: `scripts/ecim_bridge_echo.py`
+- Full usage details: [docs/PythonIntegration.md](./docs/PythonIntegration.md)
+- Distributor schema standard: [docs/DistributorJSONSchema.md](./docs/DistributorJSONSchema.md)
 
 ## Project Structure
 

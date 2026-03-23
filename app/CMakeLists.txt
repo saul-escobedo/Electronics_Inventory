@@ -4,6 +4,12 @@ project(ecim_impl)
 
 # Find Qt6 required components
 find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
+find_package(Python3 COMPONENTS Interpreter)
+
+set(ECIM_PYTHON_EXECUTABLE "python3")
+if(Python3_Interpreter_FOUND)
+	set(ECIM_PYTHON_EXECUTABLE "${Python3_EXECUTABLE}")
+endif()
 
 # Source files must be explicitly added because globbing files could
 # unintentionally include wrong or temporary CPP files. It also makes
@@ -11,6 +17,8 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 # more intentional.
 set(APP_SOURCES
 	src/Application.cpp
+	src/DistributorImportSchema.cpp
+	src/PythonScriptRunner.cpp
 	src/electronics_manager.cpp
 )
 
@@ -21,6 +29,10 @@ target_include_directories(${PROJECT_NAME} PUBLIC include)
 target_link_libraries(${PROJECT_NAME} PUBLIC
 	Qt6::Core
 	Qt6::Widgets
+)
+target_compile_definitions(${PROJECT_NAME} PUBLIC
+	ECIM_PROJECT_ROOT="${CMAKE_SOURCE_DIR}"
+	ECIM_PYTHON_EXECUTABLE="${ECIM_PYTHON_EXECUTABLE}"
 )
 
 
@@ -44,6 +56,8 @@ if(ENABLE_TESTING)
 	# and transitively propagates Qt6 interface dependencies (PUBLIC linkage)
 	add_executable(my_tests
 		tests/test_components.cpp
+		tests/test_distributor_import_schema.cpp
+		tests/test_python_script_runner.cpp
 	)
 
 	target_include_directories(my_tests PRIVATE include)

@@ -199,6 +199,81 @@ TEST(EcMath, VoltageDividerZeroResistanceThrows) {
     EXPECT_THROW(ecmath::computeVoltageDivider(5.0, 0.0, 0.0), std::exception);
 }
 
+TEST(EcMath, DividerBestFitTargetOutputVoltageMode) {
+    Resistor r1(cfg("R1", "M", "P1", "", kDefaultRating), 1000.0, 0.01);
+    Resistor r2(cfg("R2", "M", "P2", "", kDefaultRating), 2000.0, 0.01);
+    Resistor r3(cfg("R3", "M", "P3", "", kDefaultRating), 3300.0, 0.01);
+    Resistor r4(cfg("R4", "M", "P4", "", kDefaultRating), 4700.0, 0.01);
+
+    vector<const Resistor*> resistors = {&r1, &r2, &r3, &r4};
+
+    ecmath::DividerRequest request;
+    request.mode = ecmath::DividerMode::TargetOutputVoltage;
+    request.inputVoltage = 12.0;
+    request.targetOutputVoltage = 6.0; // target ratio = 0.5
+    request.maxResults = 3;
+
+    const auto result = ecmath::findBestVoltageDividerCombinations(resistors, request);
+    ASSERT_EQ(result.size(), static_cast<size_t>(3));
+
+    // Best result should be the exact 0.5 ratio pair (1k top, 1k bottom is not available,
+    // so next exact match from available values is 2k top and 2k bottom not available either).
+    // With this list, closest ratio should still be sorted by smallest error first.
+    EXPECT_LE(result[0].error, result[1].error);
+    EXPECT_LE(result[1].error, result[2].error);
+
+    // Check that output voltage is computed from selected resistors.
+    EXPECT_NEAR(
+        result[0].outputVoltage,
+        ecmath::computeVoltageDivider(12.0, result[0].r1->resistance(), result[0].r2->resistance()),
+        1e-9
+    );
+}
+
+TEST(EcMath, DividerBestFitDropdownRatioMode) {
+    Resistor r1(cfg("R1", "M", "P1", "", kDefaultRating), 1000.0, 0.01);
+    Resistor r2(cfg("R2", "M", "P2", "", kDefaultRating), 2200.0, 0.01);
+    Resistor r3(cfg("R3", "M", "P3", "", kDefaultRating), 3300.0, 0.01);
+    Resistor r4(cfg("R4", "M", "P4", "", kDefaultRating), 4700.0, 0.01);
+
+    vector<const Resistor*> resistors = {&r1, &r2, &r3, &r4};
+
+    ecmath::DividerRequest request;
+    request.mode = ecmath::DividerMode::DropdownRatio;
+    request.inputVoltage = 9.0;
+    request.targetRatio = 1.0 / 3.0;
+    request.maxResults = 5;
+
+    const auto result = ecmath::findBestVoltageDividerCombinations(resistors, request);
+    ASSERT_FALSE(result.empty());
+
+    for (size_t i = 1; i < result.size(); ++i) {
+        EXPECT_LE(result[i - 1].error, result[i].error);
+    }
+
+    EXPECT_NEAR(result[0].ratio, request.targetRatio, 0.06);
+}
+
+TEST(EcMath, DividerBestFitRequestValidation) {
+    Resistor r1(cfg("R1", "M", "P1", "", kDefaultRating), 1000.0, 0.01);
+    Resistor r2(cfg("R2", "M", "P2", "", kDefaultRating), 2000.0, 0.01);
+    vector<const Resistor*> resistors = {&r1, &r2};
+
+    ecmath::DividerRequest badTarget;
+    badTarget.mode = ecmath::DividerMode::TargetOutputVoltage;
+    badTarget.inputVoltage = 5.0;
+    badTarget.targetOutputVoltage = 6.0;
+
+    EXPECT_THROW(ecmath::findBestVoltageDividerCombinations(resistors, badTarget), std::exception);
+
+    ecmath::DividerRequest badRatio;
+    badRatio.mode = ecmath::DividerMode::DropdownRatio;
+    badRatio.inputVoltage = 5.0;
+    badRatio.targetRatio = 1.2;
+
+    EXPECT_THROW(ecmath::findBestVoltageDividerCombinations(resistors, badRatio), std::exception);
+}
+
 // ── ecmath — resistance ───────────────────────────────────────────────────────
 
 TEST(EcMath, SeriesResistance) {

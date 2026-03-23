@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ecim.distributor-import.schema.v1.json",
+  "title": "ECIM Distributor Import Envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "schemaVersion",
+    "generatedBy",
+    "items"
+  ],
+  "properties": {
+    "schema": {
+      "const": "ecim.import.v1"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "generatedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/item"
+      }
+    }
+  },
+  "$defs": {
+    "rating": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["voltage", "current", "power", "tolerance"],
+      "properties": {
+        "voltage": { "type": "number", "minimum": 0 },
+        "current": { "type": "number", "minimum": 0 },
+        "power": { "type": "number", "minimum": 0 },
+        "tolerance": { "type": "number", "minimum": 0 }
+      }
+    },
+    "source": {
+      "type": "object",
+      "required": ["provider", "raw"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1 },
+        "raw": {}
+      },
+      "additionalProperties": true
+    },
+    "baseItem": {
+      "type": "object",
+      "required": [
+        "type",
+        "name",
+        "manufacturer",
+        "partNumber",
+        "description",
+        "quantity",
+        "rating",
+        "properties",
+        "source"
+      ],
+      "properties": {
+        "type": {
+          "enum": [
+            "Resistor",
+            "Capacitor",
+            "Inductor",
+            "Diode",
+            "BJTransistor",
+            "FETransistor",
+            "IntegratedCircuit"
+          ]
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "manufacturer": { "type": "string", "minLength": 1 },
+        "partNumber": { "type": "string" },
+        "description": { "type": "string" },
+        "quantity": { "type": "integer", "minimum": 0 },
+        "rating": { "$ref": "#/$defs/rating" },
+        "properties": { "type": "object" },
+        "source": { "$ref": "#/$defs/source" }
+      },
+      "additionalProperties": false
+    },
+    "item": {
+      "oneOf": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "Resistor" },
+                "properties": {
+                  "type": "object",
+                  "required": ["resistance", "toleranceBand"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "resistance": { "type": "number", "minimum": 0 },
+                    "toleranceBand": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "Capacitor" },
+                "properties": {
+                  "type": "object",
+                  "required": ["capacitance", "capacitorType"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "capacitance": { "type": "number", "minimum": 0 },
+                    "capacitorType": {
+                      "enum": [
+                        "AluminumPolymer",
+                        "AluminumElectrolytic",
+                        "Ceramic",
+                        "ElectricDoubleLayer",
+                        "Film",
+                        "Mica",
+                        "PTFE",
+                        "NiobiumOxide",
+                        "Silicon",
+                        "Tantalum",
+                        "ThinFilm",
+                        "ACMotor",
+                        "LithiumHybrid"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "Inductor" },
+                "properties": {
+                  "type": "object",
+                  "required": ["inductance"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "inductance": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "Diode" },
+                "properties": {
+                  "type": "object",
+                  "required": ["forwardVoltage", "diodeType"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "forwardVoltage": { "type": "number", "minimum": 0 },
+                    "diodeType": {
+                      "enum": ["Regular", "Schottky", "Zener", "LED"]
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "BJTransistor" },
+                "properties": {
+                  "type": "object",
+                  "required": ["gain"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "gain": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "FETransistor" },
+                "properties": {
+                  "type": "object",
+                  "required": ["thresholdVoltage"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "thresholdVoltage": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/baseItem" },
+            {
+              "properties": {
+                "type": { "const": "IntegratedCircuit" },
+                "properties": {
+                  "type": "object",
+                  "required": ["pinCount", "width", "height", "length"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "pinCount": { "type": "integer", "minimum": 1 },
+                    "width": { "type": "number", "minimum": 0 },
+                    "height": { "type": "number", "minimum": 0 },
+                    "length": { "type": "number", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
