@@ -3,6 +3,7 @@
 #include "QMessageBox"
 #include "add_item_dialog.h"
 #include <QHeaderView>
+#include "view_item_dialog.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -35,7 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 
     //What heppens when you use the ok or cancel from "Add Item".
-
+    //Also makes sure that Add Item dialog pops up ONLY when pressing the button.
     connect(ui->Add_Item, &QPushButton::clicked, this, [=]() {
         Add_Item_Dialog dialog(this);
         if(dialog.exec() == QDialog::Accepted)
@@ -47,6 +48,11 @@ MainWindow::MainWindow(QWidget *parent)
                 );
         }
     });
+    //Detects what happens when you double click on an item from inventory table.
+    connect(ui->Inventory_Table,
+            &QTableWidget::cellDoubleClicked,
+            this,
+            &MainWindow::open_item_view);
 }
 
 //Updates the number of current stock.
@@ -78,6 +84,22 @@ void MainWindow::add_item(const QString &name, int parts, int part_num)
     ui->Inventory_Table->setItem(row, 0, new QTableWidgetItem(name));
     ui->Inventory_Table->setItem(row, 1, new QTableWidgetItem(QString::number(parts)));
     ui->Inventory_Table->setItem(row, 2, new QTableWidgetItem(QString::number(part_num)));
+}
+
+void MainWindow::open_item_view(int row, int column)
+{
+    Q_UNUSED(column);
+
+    QString name = ui->Inventory_Table->item(row, 0)->text();
+    int quantity = ui->Inventory_Table->item(row, 1) -> text().toInt();
+    int part_number = ui->Inventory_Table->item(row, 2)->text().toInt();
+
+    QString image_path = "";
+
+    View_Item_Dialog dialog(this);
+
+    dialog.Set_Item_Data(name, quantity, part_number, image_path);
+    dialog.exec();
 }
 
 MainWindow::~MainWindow()

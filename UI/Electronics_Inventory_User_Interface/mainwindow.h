@@ -28,5 +28,7 @@ private:
     void on_search_text_changed(const QString &text);
     void on_search_enter_pressed();
     void add_item(const QString &name, int parts, int part_num);
+    void open_item_view(int row, int column);
+
 };
 #endif // MAINWINDOW_H
