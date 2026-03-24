@@ -30,21 +30,23 @@ MainWindow::MainWindow(QWidget *parent)
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
     //Sample Data inside constructor for table in Dashboard.
-    add_item("Screw", 45, 34565);
-    add_item("Bolt", 120, 5678);
-    add_item("Nut", 78, 5678);
+    // add_item("Screw", 45, 34565);
+    // add_item("Bolt", 120, 5678);
+    // add_item("Nut", 78, 5678);
 
-
+    //Edits the Add Item button
     //What heppens when you use the ok or cancel from "Add Item".
     //Also makes sure that Add Item dialog pops up ONLY when pressing the button.
-    connect(ui->Add_Item, &QPushButton::clicked, this, [=]() {
+    connect(ui->Add_Item, &QPushButton::clicked, this, [this]()
+    {
         Add_Item_Dialog dialog(this);
         if(dialog.exec() == QDialog::Accepted)
         {
             add_item(
                 dialog.get_name(),
                 dialog.get_quantity(),
-                dialog.get_part_number()
+                dialog.get_part_number(),
+                dialog.get_image_path()
                 );
         }
     });
@@ -77,27 +79,41 @@ void MainWindow::on_search_enter_pressed()
 }
 
 //Adds item to Inventory Table.
-void MainWindow::add_item(const QString &name, int parts, int part_num)
+void MainWindow::add_item(const QString &name, int quantity, int part_num, const QString &image_path)
 {
     int row = ui->Inventory_Table->rowCount();
     ui->Inventory_Table->insertRow(row);
-    ui->Inventory_Table->setItem(row, 0, new QTableWidgetItem(name));
-    ui->Inventory_Table->setItem(row, 1, new QTableWidgetItem(QString::number(parts)));
-    ui->Inventory_Table->setItem(row, 2, new QTableWidgetItem(QString::number(part_num)));
+
+    QTableWidgetItem *name_item = new QTableWidgetItem(name);
+    QTableWidgetItem *quantity_item = new QTableWidgetItem(QString::number(quantity));
+    QTableWidgetItem *part_item = new QTableWidgetItem(QString::number(part_num));
+
+    //Store hidden data, image path
+    name_item->setData(Qt::UserRole, image_path);
+
+    ui->Inventory_Table->setItem(row, 0, name_item);
+    ui->Inventory_Table->setItem(row, 1, quantity_item);
+    ui->Inventory_Table->setItem(row, 2, part_item);
+    // ui->Inventory_Table->setItem(row, 0, new QTableWidgetItem(name));
+    // ui->Inventory_Table->setItem(row, 1, new QTableWidgetItem(QString::number(quantity)));
+    // ui->Inventory_Table->setItem(row, 2, new QTableWidgetItem(QString::number(part_num)));
 }
 
 void MainWindow::open_item_view(int row, int column)
 {
     Q_UNUSED(column);
 
-    QString name = ui->Inventory_Table->item(row, 0)->text();
+    QTableWidgetItem *name_item = ui->Inventory_Table->item(row, 0);
+
+    QString name = name_item->text();
     int quantity = ui->Inventory_Table->item(row, 1) -> text().toInt();
     int part_number = ui->Inventory_Table->item(row, 2)->text().toInt();
 
-    QString image_path = "";
+    //Retrieve hidden data
+    //We can use QT::UserRole to store hidden data within each item.
+    QString image_path = name_item->data(Qt::UserRole).toString();
 
     View_Item_Dialog dialog(this);
-
     dialog.Set_Item_Data(name, quantity, part_number, image_path);
     dialog.exec();
 }
