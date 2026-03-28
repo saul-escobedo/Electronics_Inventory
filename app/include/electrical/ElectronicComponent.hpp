@@ -114,7 +114,7 @@ namespace ecim {
         ElectronicComponent(const ElectronicComponent&) = delete;
         ElectronicComponent(ElectronicComponent&&) = delete;
 
-        virtual ~ElectronicComponent();
+        virtual ~ElectronicComponent() {}
 
         const string &name() const { return m_name; }
         Type type() const { return m_type; }
