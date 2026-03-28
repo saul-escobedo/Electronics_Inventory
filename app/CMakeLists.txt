@@ -18,6 +18,8 @@ endif()
 set(APP_SOURCES
     src/Application.cpp
     src/electronics_manager.cpp
+
+    src/database/SQLiteDatabase.cpp
 )
 
 # Build implementation as an OBJECT library
