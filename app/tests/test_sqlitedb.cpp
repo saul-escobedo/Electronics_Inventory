@@ -52,9 +52,10 @@ TEST(SQLiteBackend, CheckInitialization) {
     Database* db = &sqlite;
 
     // Try to access the database without it being initialized, should throw an error
-    EXPECT_THROW(db->addComponent(Resistor({}, 470, 0.05)), UninitializedDatabaseException);
+    EXPECT_THROW(db->shutdown(), UninitializedDatabaseException);
+    EXPECT_THROW(db->addComponent(Resistor(baseConfig, 470, 0.05)), UninitializedDatabaseException);
     EXPECT_THROW(db->removeComponent(65), UninitializedDatabaseException);
-    EXPECT_THROW(db->editComponent(65, Resistor({}, 470, 0.05)), UninitializedDatabaseException);
+    EXPECT_THROW(db->editComponent(65, Resistor(baseConfig, 470, 0.05)), UninitializedDatabaseException);
     EXPECT_THROW(db->getComponent(65), UninitializedDatabaseException);
     EXPECT_THROW(db->getAllComponents(), UninitializedDatabaseException);
     EXPECT_THROW(db->getAllComponentsByType(ElectronicComponent::Type::Resistor), UninitializedDatabaseException);
