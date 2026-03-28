@@ -18,7 +18,7 @@ namespace ecim {
             return message;
         }
     public:
-        UninitializedDatabaseException(std::string backendName)
+        UninitializedDatabaseException(const std::string& backendName)
         : DatabaseException(_formatMessage(backendName)) {}
     };
 }
