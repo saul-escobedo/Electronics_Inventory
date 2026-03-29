@@ -35,6 +35,24 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
     SQLite3::SQLite3
 )
 
+# Embed SQL code into a header file
+set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/sql/Schema.sql")
+set(DBSQL_SRCS
+    "${CMAKE_CURRENT_SOURCE_DIR}/sql/Accesors.sql"
+)
+set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_SOURCE_DIR}/include/database/EmbeddedSQLCode.hpp")
+add_custom_command(
+    OUTPUT ${DBSQL_OUTPUT_HPP}
+    COMMAND ${CMAKE_COMMAND}
+        -D DBSQL_SCHEMA_SRC=${DBSQL_SCHEMA_SRC}
+        -D DBSQL_SRCS=${DBSQL_SRCS}
+        -D DBSQL_OUTPUT_HPP=${DBSQL_OUTPUT_HPP}
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedSQL.cmake"
+    DEPENDS ${DBSQL_SCHEMA_SRC} ${DBSQL_SRCS}
+    COMMENT "Generating embedded SQL code into a header file"
+)
+add_custom_target(embed_sql ALL DEPENDS ${DBSQL_OUTPUT_HPP})
+add_dependencies(${PROJECT_NAME} embed_sql)
 
 # testing section, be careful
 option(ENABLE_TESTING "Enable building tests" ON)
@@ -66,6 +84,8 @@ if(ENABLE_TESTING)
 
     # Register the test executable with CTest (enable_testing is called in the root CMakeLists)
     add_test(NAME ecim_tests COMMAND ecim_tests)
+
+    add_dependencies(ecim_tests embed_sql)
 
     # Convenience target to run ctest with output on failure
     add_custom_target(check
