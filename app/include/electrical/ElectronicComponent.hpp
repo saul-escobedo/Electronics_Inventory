@@ -36,9 +36,9 @@ namespace ecim {
 
     public:
         // Type of electronic component. Any new type of component (like a new
-        // dervied class) must be added here.
+        // dervied class) must be added here after the last.
         enum class Type {
-            Resistor,
+            Resistor = 1,
             Capacitor,
             Inductor,
             Diode,
