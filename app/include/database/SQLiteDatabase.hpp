@@ -2,12 +2,13 @@
 
 #include "Database.hpp"
 #include "electrical/ElectronicComponent.hpp"
+#include "sqlite3.h"
 
 namespace ecim {
     class SQLiteDatabase : public Database {
     public:
         SQLiteDatabase(
-            const char* dbFilename
+            const std::string& dbFilename
         );
 
         void initialize() override;
@@ -41,5 +42,11 @@ namespace ecim {
         ) override;
 
         std::unique_ptr<Transaction> startTransaction() override;
+    private:
+        sqlite3* m_db;
+        std::string m_dbFilename;
+
+        // Check if the database is initialized before using accessor functions
+        void _checkInitialization();
     };
 }
