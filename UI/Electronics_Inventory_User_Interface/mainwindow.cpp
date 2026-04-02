@@ -4,6 +4,10 @@
 #include "add_item_dialog.h"
 #include <QHeaderView>
 #include "view_item_dialog.h"
+#include <QSqlDatabase>
+#include <QSqlQuery>
+#include <QSqlError>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -12,6 +16,13 @@ MainWindow::MainWindow(QWidget *parent)
     //Every new function init goes AFTER setupUi.
 
     ui->setupUi(this);
+
+    dbManager.openDatabase();
+    dbManager.createTable();
+
+
+
+
     //For the total parts stat.
     update_total_parts_label();
     //For text to show on search bar.

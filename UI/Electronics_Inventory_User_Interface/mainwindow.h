@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include "database.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -19,6 +20,7 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    Database dbManager;
 
     //All functions for Dashboard are init here.
 
