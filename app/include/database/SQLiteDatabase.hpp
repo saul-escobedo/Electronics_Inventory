@@ -43,8 +43,20 @@ namespace ecim {
 
         std::unique_ptr<Transaction> startTransaction() override;
     private:
+        struct SQLAccessors {
+            sqlite3_stmt* addComponent;
+            sqlite3_stmt* addResistor;
+            sqlite3_stmt* addCapacitor;
+            sqlite3_stmt* addInductor;
+            sqlite3_stmt* addBJTransistor;
+            sqlite3_stmt* addFETransistor;
+            sqlite3_stmt* addIntegratedCircuit;
+        };
+
         sqlite3* m_db;
         std::string m_dbFilename;
+
+        SQLAccessors m_accessors;
 
         // Check if the database is initialized before using accessor functions
         void _checkInitialization();
