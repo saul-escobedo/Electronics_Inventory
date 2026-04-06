@@ -38,7 +38,7 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 # Embed SQL code into a header file
 set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/sql/Schema.sql")
 set(DBSQL_SRCS
-    "${CMAKE_CURRENT_SOURCE_DIR}/sql/Accesors.sql"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sql/Accessors.sql"
 )
 set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_SOURCE_DIR}/include/database/EmbeddedSQLCode.hpp")
 add_custom_command(
