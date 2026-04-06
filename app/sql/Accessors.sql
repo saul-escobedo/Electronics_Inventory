@@ -31,6 +31,11 @@ INSERT INTO Inductors
 (ComponentID, Inductance)
 VALUES(?, ?);
 
+--AddDiode
+INSERT INTO Diodes
+(ComponentID, Type, ForwardVoltage)
+VALUES(?, ?, ?);
+
 --AddBjTransistor
 INSERT INTO BJTransistors
 (ComponentID, Gain)
@@ -43,5 +48,5 @@ VALUES(?, ?);
 
 --AddIntegratedCircuit
 INSERT INTO IntegratedCircuits
-(ComponentID, PinCout, Width, Height, Length)
+(ComponentID, PinCount, Width, Height, Length)
 VALUES(?, ?, ?, ?, ?);

@@ -38,6 +38,14 @@ CREATE TABLE IF NOT EXISTS Inductors(
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
 
+CREATE TABLE IF NOT EXISTS Diodes(
+    DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    ComponentID INTEGER,
+    Type INTEGER NOT NULL,
+    ForwardVoltage DOUBLE DEFAULT 0, --Volts
+    FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
+);
+
 CREATE TABLE IF NOT EXISTS BJTransistors(
     TransistorID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,

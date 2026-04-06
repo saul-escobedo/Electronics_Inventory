@@ -47,6 +47,14 @@ CREATE TABLE IF NOT EXISTS Inductors(
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
 
+CREATE TABLE IF NOT EXISTS Diodes(
+    DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    ComponentID INTEGER,
+    Type INTEGER NOT NULL,
+    ForwardVoltage DOUBLE DEFAULT 0, --Volts
+    FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
+);
+
 CREATE TABLE IF NOT EXISTS BJTransistors(
     TransistorID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,
@@ -92,5 +100,35 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?))";
 R"(INSERT INTO Resistors
 (ComponentID, Resistance, ToleranceBand)
 VALUES(?, ?, ?))";
+
+    static const char *DBSQL_ADD_CAPACITOR =
+R"(INSERT INTO Capacitors
+(ComponentID, Type, Capacitance)
+VALUES(?, ?, ?))";
+
+    static const char *DBSQL_ADD_INDUCTOR =
+R"(INSERT INTO Inductors
+(ComponentID, Inductance)
+VALUES(?, ?))";
+
+    static const char *DBSQL_ADD_DIODE =
+R"(INSERT INTO Diodes
+(ComponentID, Type, ForwardVoltage)
+VALUES(?, ?, ?))";
+
+    static const char *DBSQL_ADD_BJ_TRANSISTOR =
+R"(INSERT INTO BJTransistors
+(ComponentID, Gain)
+VALUES(?, ?))";
+
+    static const char *DBSQL_ADD_FE_TRANSISTOR =
+R"(INSERT INTO FETransistors
+(ComponentID, ThresholdVoltage)
+VALUES(?, ?))";
+
+    static const char *DBSQL_ADD_INTEGRATED_CIRCUIT =
+R"(INSERT INTO IntegratedCircuits
+(ComponentID, PinCount, Width, Height, Length)
+VALUES(?, ?, ?, ?, ?))";
 
 }
