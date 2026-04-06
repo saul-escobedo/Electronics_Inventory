@@ -20,3 +20,28 @@ VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?);
 INSERT INTO Resistors
 (ComponentID, Resistance, ToleranceBand)
 VALUES(?, ?, ?);
+
+--AddCapacitor
+INSERT INTO Capacitors
+(ComponentID, Type, Capacitance)
+VALUES(?, ?, ?);
+
+--AddInductor
+INSERT INTO Inductors
+(ComponentID, Inductance)
+VALUES(?, ?);
+
+--AddBjTransistor
+INSERT INTO BJTransistors
+(ComponentID, Gain)
+VALUES(?, ?);
+
+--AddFeTransistor
+INSERT INTO FETransistors
+(ComponentID, ThresholdVoltage)
+VALUES(?, ?);
+
+--AddIntegratedCircuit
+INSERT INTO IntegratedCircuits
+(ComponentID, PinCout, Width, Height, Length)
+VALUES(?, ?, ?, ?, ?);
