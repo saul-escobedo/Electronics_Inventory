@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS Inductors(
 CREATE TABLE IF NOT EXISTS Diodes(
     DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,
-    Type INTEGER NOT NULL,
+    Type INTEGER NOT NULL, --Diode::Type enum
     ForwardVoltage DOUBLE DEFAULT 0, --Volts
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
@@ -66,14 +66,6 @@ CREATE TABLE IF NOT EXISTS FETransistors(
     TransistorID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,
     ThresholdVoltage DOUBLE DEFAULT 0, --Volts
-    FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
-);
-
-CREATE TABLE IF NOT EXISTS Diodes(
-    DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    ComponentID INTEGER,
-    Type INTEGER NOT NULL, --Diode::Type enum
-    ForwardVoltage DOUBLE DEFAULT 0, --Volts
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
 
@@ -130,5 +122,94 @@ VALUES(?, ?))";
 R"(INSERT INTO IntegratedCircuits
 (ComponentID, PinCount, Width, Height, Length)
 VALUES(?, ?, ?, ?, ?))";
+
+    static const char *DBSQL_GET_COMPONENT =
+R"(SELECT * FROM ElectronicComponents WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_RESISTOR =
+R"(SELECT * FROM Resistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_CAPACITOR =
+R"(SELECT * FROM Capacitors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_INDUCTOR =
+R"(SELECT * FROM Inductors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_DIODE =
+R"(SELECT * FROM Diodes WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_BJ_TRANSISTOR =
+R"(SELECT * FROM BJTransistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_FE_TRANSISTOR =
+R"(SELECT * FROM FETransistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_GET_INTEGRATED_CIRCUIT =
+R"(SELECT * FROM IntegratedCircuits WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_COMPONENT =
+R"(DELETE FROM ElectronicComponents WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_RESISTOR =
+R"(DELETE FROM Resistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_CAPACITOR =
+R"(DELETE FROM Capacitors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_INDUCTOR =
+R"(DELETE FROM Inductors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_DIODE =
+R"(DELETE FROM Diodes WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_BJ_TRANSISTOR =
+R"(DELETE FROM BJTransistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_FE_TRANSISTOR =
+R"(DELETE FROM FETransistors WHERE ComponentID = ?)";
+
+    static const char *DBSQL_REMOVE_INTEGRATED_CIRCUIT =
+R"(DELETE FROM IntegratedCircuits WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_COMPONENT =
+R"(UPDATE ElectronicComponents
+SET Name = ?, Manufacturer = ?, PartNumber = ?, Description = ?, Quantity = ?,
+VoltageRating = ?, CurrentRating = ?, PowerRating = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_RESISTOR =
+R"(UPDATE Resistors
+SET Resistance = ?, ToleranceBand = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_CAPACITOR =
+R"(UPDATE Capacitors
+SET Type = ?, Capacitance = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_INDUCTOR =
+R"(UPDATE Inductors
+SET Inductance = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_DIODE =
+R"(UPDATE Diodes
+SET Type = ?, ForwardVoltage = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_BJ_TRANSISTOR =
+R"(UPDATE BJTransistors
+SET Gain = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_FE_TRANSISTOR =
+R"(UPDATE FETransistors
+SET ThresholdVoltage = ?
+WHERE ComponentID = ?)";
+
+    static const char *DBSQL_EDIT_INTEGRATED_CIRCUIT =
+R"(UPDATE IntegratedCircuits
+SET PinCount = ?, Width = ?, Height = ?, Length = ?
+WHERE ComponentID = ?)";
 
 }
