@@ -10,13 +10,11 @@ namespace ecim {
         double voltage;
         double current;
         double power;
-        double tolerance;
 
         bool valid() const {
             return voltage >= 0
                 && current >= 0
-                && power >= 0
-                && tolerance >= 0;
+                && power >= 0;
         }
     };
 

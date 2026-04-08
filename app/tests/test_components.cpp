@@ -15,7 +15,7 @@ static ElectronicComponent::BaseConfig cfg(
     return ElectronicComponent::BaseConfig{rating, name, mfg, pn, desc, qty};
 }
 
-static const ElectronicRating kDefaultRating{5.0, 0.01, 0.05, 0.05};
+static const ElectronicRating kDefaultRating{5.0, 0.01, 0.05};
 
 // ── Component construction ────────────────────────────────────────────────────
 
@@ -89,7 +89,7 @@ TEST(QuantityManagement, OverRemoveThrows) {
 // ── Validation errors ─────────────────────────────────────────────────────────
 
 TEST(Validation, NegativeVoltageRatingThrows) {
-    ElectronicRating bad{-1.0, 0.01, 0.05, 0.05};
+    ElectronicRating bad{-1.0, 0.01, 0.05};
     EXPECT_THROW((Resistor{cfg("X", "M", "P", "", bad), 100.0, 0.01}), std::exception);
 }
 
