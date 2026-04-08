@@ -62,7 +62,7 @@ As usual, be mindful of errors; sometimes this can throw an exception. Therefore
 Next, we can retieve a component if we know their ID:
 
 ```c++
-// Keep in mind, this could throw an exception if the component with this id is not found
+// WIll return nullptr if the item is not found
 auto resistor = db->getComponent(1093);
 ```
 
@@ -79,7 +79,7 @@ Updating the component's properties can usually follow this flow:
 // Get the instance of the component already in the database
 auto component = db->getComponent(64);
 
-// We've had gain more stock if this component, let's increase its quantity
+// We've had gain more stock of this component, let's increase its quantity
 component->addQuantity(5);
 
 // Let's save this back to the database
