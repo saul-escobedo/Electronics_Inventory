@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS Inductors(
 CREATE TABLE IF NOT EXISTS Diodes(
     DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,
-    Type INTEGER NOT NULL,
+    Type INTEGER NOT NULL, --Diode::Type enum
     ForwardVoltage DOUBLE DEFAULT 0, --Volts
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
@@ -57,14 +57,6 @@ CREATE TABLE IF NOT EXISTS FETransistors(
     TransistorID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     ComponentID INTEGER,
     ThresholdVoltage DOUBLE DEFAULT 0, --Volts
-    FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
-);
-
-CREATE TABLE IF NOT EXISTS Diodes(
-    DiodeID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-    ComponentID INTEGER,
-    Type INTEGER NOT NULL, --Diode::Type enum
-    ForwardVoltage DOUBLE DEFAULT 0, --Volts
     FOREIGN KEY (ComponentID) REFERENCES ElectronicComponents(ComponentID)
 );
 
