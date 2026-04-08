@@ -16,6 +16,33 @@ namespace ecim {
         sqlite3_stmt* addBJTransistor;
         sqlite3_stmt* addFETransistor;
         sqlite3_stmt* addIntegratedCircuit;
+
+        sqlite3_stmt* getComponent;
+        sqlite3_stmt* getResistor;
+        sqlite3_stmt* getCapacitor;
+        sqlite3_stmt* getInductor;
+        sqlite3_stmt* getDiode;
+        sqlite3_stmt* getBJTransistor;
+        sqlite3_stmt* getFETransistor;
+        sqlite3_stmt* getIntegratedCircuit;
+
+        sqlite3_stmt* removeComponent;
+        sqlite3_stmt* removeResistor;
+        sqlite3_stmt* removeCapacitor;
+        sqlite3_stmt* removeInductor;
+        sqlite3_stmt* removeDiode;
+        sqlite3_stmt* removeBJTransistor;
+        sqlite3_stmt* removeFETransistor;
+        sqlite3_stmt* removeIntegratedCircuit;
+
+        sqlite3_stmt* editComponent;
+        sqlite3_stmt* editResistor;
+        sqlite3_stmt* editCapacitor;
+        sqlite3_stmt* editInductor;
+        sqlite3_stmt* editDiode;
+        sqlite3_stmt* editBJTransistor;
+        sqlite3_stmt* editFETransistor;
+        sqlite3_stmt* editIntegratedCircuit;
     };
 
     class SQLiteDatabase : public Database {
@@ -84,6 +111,19 @@ namespace ecim {
         void _addAdditionalComponentProperties(
             ComponentID ID, const ElectronicComponent& newComponent);
 
+        // Get specific component properties depending on its type
+        std::unique_ptr<ElectronicComponent> _getAdditionalComponentProperties(
+            ComponentID ID,
+            ElectronicComponent::BaseConfig config,
+            ElectronicComponent::Type type
+        );
+
+        // Edit specific component properties depending on its type
+        void _editAdditionalComponentProperties(
+            ComponentID ID,
+            const ElectronicComponent& updatedComponent
+        );
+
         // Speciazlied Accessor helpers
         void _addResistor(ComponentID ID, const Resistor& newResistor);
         void _addCapacitor(ComponentID ID, const Capacitor& newCapacitor);
@@ -92,5 +132,26 @@ namespace ecim {
         void _addBJTransistor(ComponentID ID, const BJTransistor& newTransistor);
         void _addFETransistor(ComponentID ID, const FETransistor& newTransistor);
         void _addIntegratedCircuit(ComponentID ID, const IntegratedCircuit& newChip);
+        std::unique_ptr<ElectronicComponent>
+        _getResistor(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getCapacitor(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getInductor(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getDiode(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getBJTransistor(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getFETransistor(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        std::unique_ptr<ElectronicComponent>
+        _getIntegratedCircuit(ComponentID ID, const ElectronicComponent::BaseConfig& config);
+        void _editResistor(ComponentID ID, const Resistor& updatedResistor);
+        void _editCapacitor(ComponentID ID, const Capacitor& updatedCapacitor);
+        void _editInductor(ComponentID ID, const Inductor& updatedInductor);
+        void _editDiode(ComponentID ID, const Diode& updatedDiode);
+        void _editBJTransistor(ComponentID ID, const BJTransistor& updatedTransistor);
+        void _editFETransistor(ComponentID ID, const FETransistor& updatedTransistor);
+        void _editIntegratedCircuit(ComponentID ID, const IntegratedCircuit& updatedChip);
     };
 }

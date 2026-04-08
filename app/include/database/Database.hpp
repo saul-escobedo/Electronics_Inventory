@@ -37,7 +37,7 @@ namespace ecim {
         ///
         /// @param id ID of component to be removed
         ///
-        /// @return unique_ptr<ElectronicComponent> containg information
+        /// @return unique_ptr<ElectronicComponent> contaning information
         /// that was removed
         virtual std::unique_ptr<ElectronicComponent> removeComponent(
             ComponentID id) = 0;
