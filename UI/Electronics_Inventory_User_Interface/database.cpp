@@ -2,11 +2,20 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include <QDir>     //Used for the directory of the database file.
+#include <QCoreApplication>
 
 Database::Database()
 {
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
-    db.setDatabaseName("inventory.db");
+    qDebug() << "🔥 Database constructor called";
+    //QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
+    db = QSqlDatabase::addDatabase("QSQLITE");
+    //db.setDatabaseName("inventory.db");
+    //This sets the .db directory to the executable directory.
+    QString path = QCoreApplication::applicationDirPath() + "/inventory.db";
+    db.setDatabaseName(path);
+
+    qDebug() << "DB Path: " << path;
 }
 
 bool Database::openDatabase()

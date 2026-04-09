@@ -4,12 +4,6 @@
 #include "add_item_dialog.h"
 #include <QHeaderView>
 #include "view_item_dialog.h"
-#include <QSqlDatabase>
-#include <QSqlQuery>
-#include <QSqlError>
-#include <QDebug>
-
-
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -18,22 +12,6 @@ MainWindow::MainWindow(QWidget *parent)
     //Every new function init goes AFTER setupUi.
 
     ui->setupUi(this);
-
-
-
-    //Start implementing the database class.
-    //This is a test
-    //
-
-    if(!dbManager.openDatabase())
-    {
-        qDebug() << "Database failed to opoen";
-    } else
-        qDebug() << "Database opened successfully";
-
-    dbManager.createTable();
-
-
     //For the total parts stat.
     update_total_parts_label();
     //For text to show on search bar.
@@ -51,15 +29,6 @@ MainWindow::MainWindow(QWidget *parent)
     ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-    //Load items into the table.
-    QVector<Item> items = dbManager.getAllItems();
-
-    for(const Item &item : items)
-    {
-        add_item(item.name, item.quantity, item.partNumber, item.imagePath);
-    }
-
-
     //Sample Data inside constructor for table in Dashboard.
     // add_item("Screw", 45, 34565);
     // add_item("Bolt", 120, 5678);
@@ -73,21 +42,12 @@ MainWindow::MainWindow(QWidget *parent)
         Add_Item_Dialog dialog(this);
         if(dialog.exec() == QDialog::Accepted)
         {
-            Item item;
-            item.name = dialog.get_name();
-            item.quantity = dialog.get_quantity();
-            item.partNumber = dialog.get_part_number();
-            item.imagePath = dialog.get_image_path();
-
-            add_item(item.name, item.quantity, item.partNumber, item.imagePath);
-            dbManager.addItem(item);
-
-            // add_item(
-            //     dialog.get_name(),
-            //     dialog.get_quantity(),
-            //     dialog.get_part_number(),
-            //     dialog.get_image_path()
-            //     );
+            add_item(
+                dialog.get_name(),
+                dialog.get_quantity(),
+                dialog.get_part_number(),
+                dialog.get_image_path()
+                );
         }
     });
     //Detects what happens when you double click on an item from inventory table.
@@ -134,10 +94,6 @@ void MainWindow::add_item(const QString &name, int quantity, int part_num, const
     ui->Inventory_Table->setItem(row, 0, name_item);
     ui->Inventory_Table->setItem(row, 1, quantity_item);
     ui->Inventory_Table->setItem(row, 2, part_item);
-
-    // ui->Inventory_Table->setItem(row, 0, new QTableWidgetItem(name));
-    // ui->Inventory_Table->setItem(row, 1, new QTableWidgetItem(QString::number(quantity)));
-    // ui->Inventory_Table->setItem(row, 2, new QTableWidgetItem(QString::number(part_num)));
 }
 
 void MainWindow::open_item_view(int row, int column)
@@ -163,4 +119,3 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-
