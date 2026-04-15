@@ -34,3 +34,23 @@ void Edit_Item_Dialog::setItemData(const QString &name,
     QPixmap pix(imagePath);
     ui->image_label->setPixmap(pix.scaled(100,100, Qt::KeepAspectRatio));
 }
+
+QString Edit_Item_Dialog::getName() const
+{
+    return ui->name_line_edit->text();
+}
+
+int Edit_Item_Dialog::getQuantity() const
+{
+    return ui->quantity_spin_box->value();
+}
+
+int Edit_Item_Dialog::getPartNumber() const
+{
+    return ui->part_number_line_edit->text().toInt();
+}
+
+QString Edit_Item_Dialog::getImagePath() const
+{
+    return imagePath;
+}
