@@ -24,9 +24,6 @@ public:
 
     bool addItem(const Item &item);
     QVector<Item> getAllItems();
-
-    bool updateItem(int originalPartNumber, const Item &item);
-    bool deleteItem(int partNumber);
 private:
     QSqlDatabase db;
 };

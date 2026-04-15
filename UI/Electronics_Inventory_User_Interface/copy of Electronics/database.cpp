@@ -79,29 +79,3 @@ QVector<Item> Database::getAllItems()
     }
     return items;
 }
-
-bool Database::updateItem(int originalPartNumber, const Item &item)
-{
-    QSqlQuery query;
-    query.prepare("UPDATE items SET name=?, quantity=?, partNumber=?, imagePath=? "
-                  "WHERE partNumber=?");
-
-    query.addBindValue(item.name);
-    query.addBindValue(item.quantity);
-    query.addBindValue(item.partNumber);
-    query.addBindValue(item.imagePath);
-    query.addBindValue(originalPartNumber);
-
-    return query.exec();
-}
-
-bool Database::deleteItem(int partNumber)
-{
-    QSqlQuery query;
-    query.prepare("DELETE FROM items WHERE partNumber=?");
-
-    query.addBindValue(partNumber);
-
-    return query.exec();
-}
-

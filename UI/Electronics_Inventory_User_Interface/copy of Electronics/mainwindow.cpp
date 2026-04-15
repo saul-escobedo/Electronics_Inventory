@@ -8,7 +8,6 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
-#include "edit_item_dialog.h"
 
 
 
@@ -60,6 +59,12 @@ MainWindow::MainWindow(QWidget *parent)
         add_item(item.name, item.quantity, item.partNumber, item.imagePath);
     }
 
+
+    //Sample Data inside constructor for table in Dashboard.
+    // add_item("Screw", 45, 34565);
+    // add_item("Bolt", 120, 5678);
+    // add_item("Nut", 78, 5678);
+
     //Edits the Add Item button
     //What heppens when you use the ok or cancel from "Add Item".
     //Also makes sure that Add Item dialog pops up ONLY when pressing the button.
@@ -76,6 +81,13 @@ MainWindow::MainWindow(QWidget *parent)
 
             add_item(item.name, item.quantity, item.partNumber, item.imagePath);
             dbManager.addItem(item);
+
+            // add_item(
+            //     dialog.get_name(),
+            //     dialog.get_quantity(),
+            //     dialog.get_part_number(),
+            //     dialog.get_image_path()
+            //     );
         }
     });
     //Detects what happens when you double click on an item from inventory table.
@@ -83,51 +95,6 @@ MainWindow::MainWindow(QWidget *parent)
             &QTableWidget::cellDoubleClicked,
             this,
             &MainWindow::open_item_view);
-
-    connect(ui->Edit_Item, &QPushButton::clicked, this, [this] ()
-    {
-        int row = ui->Inventory_Table->currentRow();
-
-        if(row < 0) {
-            QMessageBox::warning(this, "Error", "Select an item first");
-            return;
-        }
-
-        QTableWidgetItem *name_item = ui->Inventory_Table->item(row, 0);
-
-        QString name = name_item->text();
-        int quantity = ui->Inventory_Table->item(row,1)->text().toInt();
-        int partNumber = ui->Inventory_Table->item(row,2)->text().toInt();
-        QString imagePath = name_item->data(Qt::UserRole).toString();
-
-        Edit_Item_Dialog dialog(this);
-        dialog.setItemData(name, quantity, partNumber, imagePath);
-
-        // Handle Delete
-        connect(&dialog, &Edit_Item_Dialog::deleteRequested, this, [=](int partNum){
-            dbManager.deleteItem(partNum);
-            ui->Inventory_Table->removeRow(row);
-        });
-
-        // ✏️ HANDLE UPDATE
-        if(dialog.exec() == QDialog::Accepted)
-        {
-            Item item;
-            item.name = dialog.getName();
-            item.quantity = dialog.getQuantity();
-            item.partNumber = dialog.getPartNumber();
-            item.imagePath = dialog.getImagePath();
-
-            dbManager.updateItem(partNumber, item);
-
-            // update UI
-            ui->Inventory_Table->item(row,0)->setText(item.name);
-            ui->Inventory_Table->item(row,1)->setText(QString::number(item.quantity));
-            ui->Inventory_Table->item(row,2)->setText(QString::number(item.partNumber));
-            ui->Inventory_Table->item(row,0)->setData(Qt::UserRole, item.imagePath);
-        }
-
-    });
 }
 
 //Updates the number of current stock.
@@ -167,6 +134,10 @@ void MainWindow::add_item(const QString &name, int quantity, int part_num, const
     ui->Inventory_Table->setItem(row, 0, name_item);
     ui->Inventory_Table->setItem(row, 1, quantity_item);
     ui->Inventory_Table->setItem(row, 2, part_item);
+
+    // ui->Inventory_Table->setItem(row, 0, new QTableWidgetItem(name));
+    // ui->Inventory_Table->setItem(row, 1, new QTableWidgetItem(QString::number(quantity)));
+    // ui->Inventory_Table->setItem(row, 2, new QTableWidgetItem(QString::number(part_num)));
 }
 
 void MainWindow::open_item_view(int row, int column)

@@ -85,19 +85,6 @@
      <string>Add Item</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="Edit_Item">
-    <property name="geometry">
-     <rect>
-      <x>560</x>
-      <y>40</y>
-      <width>86</width>
-      <height>26</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>Edit Item</string>
-    </property>
-   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
