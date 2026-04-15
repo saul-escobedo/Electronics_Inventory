@@ -346,3 +346,53 @@ TEST(SQLiteBackend, EnsurePersistance) {
 
     removeFile("test_db.sqlite");
 }
+
+TEST(SQLiteBackend, GetAllComponents) {
+    SQLiteDatabase sqlite("test_db.sqlite");
+    Database* db = &sqlite;
+
+    db->initialize();
+
+    Resistor resistor(baseConfig, 220, 0.05);
+    Capacitor capacitor(baseConfig, Capacitor::Type::AluminumElectrolytic, 100e-6);
+    Inductor inductor(baseConfig, 80e-6);
+    Diode diode(baseConfig, 0.4, Diode::Type::Schottky);
+	BJTransistor bjTransistor(baseConfig, 120);
+	FETransistor feTransistor(baseConfig, 2.4);
+	IntegratedCircuit chip(baseConfig, 8, 8e-3, 6e-3, 2e-3);
+
+	Resistor* resistorPtr;
+	Capacitor* capacitorPtr;
+	Inductor* inductorPtr;
+	Diode* diodePtr;
+	BJTransistor* bjTransistorPtr;
+	FETransistor* feTransistorPtr;
+
+	db->addComponent(resistor);
+	db->addComponent(capacitor);
+	db->addComponent(inductor);
+	db->addComponent(diode);
+	db->addComponent(bjTransistor);
+	db->addComponent(feTransistor);
+	db->addComponent(chip);
+
+	MassQueryResult result = db->getAllComponents();
+
+	EXPECT_EQ(result.totalItems, 7);
+	EXPECT_EQ(result.totalPages, 1);
+	
+	int i = 0;
+	for(std::unique_ptr<ElectronicComponent>& p : result.items) {
+		ElectronicComponent* c = p.get();
+
+		switch(c->type()) {
+		case ElectronicComponent::Type::Resistor:
+			resistorPtr = dynamic_case<Resistor*>(c);
+			EXPECT_NE(resistorPtr, nullptr);
+		}
+	}
+
+    db->shutdown();
+
+    removeFile("test_db.sqlite");
+}
