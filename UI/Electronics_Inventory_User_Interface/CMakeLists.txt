@@ -27,6 +27,7 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         view_item_dialog.h view_item_dialog.cpp view_item_dialog.ui
         database.h database.cpp
         edit_item_dialog.h edit_item_dialog.cpp edit_item_dialog.ui
+        settings.h settings.cpp settings.ui
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Electronics_Inventory_User_Interface APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

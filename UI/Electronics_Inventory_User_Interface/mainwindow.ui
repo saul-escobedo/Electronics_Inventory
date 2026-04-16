@@ -98,6 +98,19 @@
      <string>Edit Item</string>
     </property>
    </widget>
+   <widget class="QPushButton" name="Settings_Button">
+    <property name="geometry">
+     <rect>
+      <x>680</x>
+      <y>40</y>
+      <width>92</width>
+      <height>26</height>
+     </rect>
+    </property>
+    <property name="text">
+     <string>Settings</string>
+    </property>
+   </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">

@@ -9,6 +9,7 @@
 #include <QSqlError>
 #include <QDebug>
 #include "edit_item_dialog.h"
+#include "settings.h"
 
 
 
@@ -52,13 +53,14 @@ MainWindow::MainWindow(QWidget *parent)
     ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
 
-    //Load items into the table.
+    //Load items into the table and update the total parts label.
     QVector<Item> items = dbManager.getAllItems();
 
     for(const Item &item : items)
     {
         add_item(item.name, item.quantity, item.partNumber, item.imagePath);
     }
+    update_total_parts_label();
 
     //Edits the Add Item button
     //What heppens when you use the ok or cancel from "Add Item".
@@ -76,6 +78,8 @@ MainWindow::MainWindow(QWidget *parent)
 
             add_item(item.name, item.quantity, item.partNumber, item.imagePath);
             dbManager.addItem(item);
+
+            update_total_parts_label();
         }
     });
     //Detects what happens when you double click on an item from inventory table.
@@ -107,6 +111,7 @@ MainWindow::MainWindow(QWidget *parent)
         connect(&dialog, &Edit_Item_Dialog::deleteRequested, this, [=](int partNum){
             dbManager.deleteItem(partNum);
             ui->Inventory_Table->removeRow(row);
+            update_total_parts_label();
         });
 
         // ✏️ HANDLE UPDATE
@@ -125,14 +130,32 @@ MainWindow::MainWindow(QWidget *parent)
             ui->Inventory_Table->item(row,1)->setText(QString::number(item.quantity));
             ui->Inventory_Table->item(row,2)->setText(QString::number(item.partNumber));
             ui->Inventory_Table->item(row,0)->setData(Qt::UserRole, item.imagePath);
+            update_total_parts_label();
         }
 
+    });
+
+    connect(ui->Settings_Button, &QPushButton::clicked, this, [this]() {
+        Settings dialog(this);
+        dialog.exec();
     });
 }
 
 //Updates the number of current stock.
 void MainWindow::update_total_parts_label()
 {
+    // ui->Total_Parts->setText(
+    //     QString("Total parts: %1").arg(total_parts));
+    int total = 0;
+    int rows = ui->Inventory_Table->rowCount();
+    for(int i = 0; i < rows; i++)
+    {
+        int quantity = ui->Inventory_Table->item(i, 1)->text().toInt();
+        total += quantity;
+    }
+
+    total_parts = total;
+
     ui->Total_Parts->setText(
         QString("Total parts: %1").arg(total_parts));
 }

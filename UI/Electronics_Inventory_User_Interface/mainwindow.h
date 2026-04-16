@@ -25,7 +25,7 @@ private:
     //All functions for Dashboard are init here.
 
     //This is for updating the total parts in stock from Dashboard.
-    int total_parts = 45;
+    int total_parts;
     void update_total_parts_label();
     void on_search_text_changed(const QString &text);
     void on_search_enter_pressed();
