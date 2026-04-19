@@ -15,6 +15,9 @@ public:
     explicit Settings(QWidget *parent = nullptr);
     ~Settings();
 
+signals:
+    void settingsChanged();
+
 private slots:
     void loadSettings();
     void saveSettings();

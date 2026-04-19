@@ -11,13 +11,23 @@
 Database::Database()
 {
     db = QSqlDatabase::addDatabase("QSQLITE");
+    //REad db path from settings in Database class.
+    QSettings settings("MyCompany", "InventoryApp");
 
-    QSettings settings(""
+    QString folderPath = settings.value(
+        "dbPath",
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                                     ).toString();
+
+    QDir().mkpath(folderPath);      //enddure folder exists
+
+    QString fullPath = folderPath + "/inventory.db";
+
     //This sets the .db directory to the executable directory.
-    QString path = QCoreApplication::applicationDirPath() + "/inventory.db";
-    db.setDatabaseName(path);
+    //QString path = QCoreApplication::applicationDirPath() + "/inventory.db";
+    db.setDatabaseName(fullPath);
 
-    qDebug() << "DB Path: " << path;
+    qDebug() << "DB Path: " << fullPath;
 }
 
 bool Database::openDatabase()
@@ -107,3 +117,22 @@ bool Database::deleteItem(int partNumber)
     return query.exec();
 }
 
+void Database::reopenDatabase()
+{
+    if(db.isOpen())
+        db.close();
+
+    QSettings settings("MyCompany", "InventoryApp");
+
+    QString folderPath = settings.value("dbPath").toString();
+    QString fullPath = folderPath + "/inventory.db";
+
+    db.setDatabaseName(fullPath);
+
+    if(!db.open())
+    {
+        qDebug() << "Failed to reopen DB: " << db.lastError().text();
+    } else {
+        qDebug() << "DB reopened at: " << fullPath;
+    }
+}

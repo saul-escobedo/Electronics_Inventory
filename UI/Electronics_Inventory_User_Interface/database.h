@@ -27,6 +27,8 @@ public:
 
     bool updateItem(int originalPartNumber, const Item &item);
     bool deleteItem(int partNumber);
+    void reopenDatabase();      //Used to restart connection so sqlite creates a new
+                                //db file in inputed default path.
 private:
     QSqlDatabase db;
 };

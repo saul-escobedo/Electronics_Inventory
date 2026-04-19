@@ -41,5 +41,6 @@ void Settings::saveSettings()
     settings.setValue("username", ui->usernameLineEdit->text());
     settings.setValue("dbPath", ui->dbPathLineEdit->text());
 
+    emit settingsChanged();
     accept(); // close dialog
 }
