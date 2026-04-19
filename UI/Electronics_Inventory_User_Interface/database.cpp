@@ -4,13 +4,15 @@
 #include <QDebug>
 #include <QDir>     //Used for the directory of the database file.
 #include <QCoreApplication>
+#include <QSettings>
+#include <QStandardPaths>
+
 
 Database::Database()
 {
-    qDebug() << "🔥 Database constructor called";
-    //QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE");
     db = QSqlDatabase::addDatabase("QSQLITE");
-    //db.setDatabaseName("inventory.db");
+
+    QSettings settings(""
     //This sets the .db directory to the executable directory.
     QString path = QCoreApplication::applicationDirPath() + "/inventory.db";
     db.setDatabaseName(path);
