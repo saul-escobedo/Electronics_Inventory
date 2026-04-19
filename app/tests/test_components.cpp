@@ -155,7 +155,7 @@ TEST(ElectronicsManager, AddRetrieveAndStress) {
     EXPECT_EQ(mgr_inductors.size(), static_cast<size_t>(2));
 
     std::vector<ElectronicComponent*> mgr_mosfets;
-    mgr.getAllComponentsByType(ElectronicComponent::Type::Mosfet, mgr_mosfets);
+    mgr.getAllComponentsByType(ElectronicComponent::Type::FETransistor, mgr_mosfets);
     EXPECT_EQ(mgr_mosfets.size(), static_cast<size_t>(1));
 
     // ── Series resistance on the 3 resistors just added ──────────────────────

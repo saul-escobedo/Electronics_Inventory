@@ -5,6 +5,15 @@ project(ecim_impl)
 # Find Qt6 required components
 find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
+# Fetch nlohmann/json for settings management
+include(FetchContent)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(json)
+
 # Source files must be explicitly added because globbing files could
 # unintentionally include wrong or temporary CPP files. It also makes
 # reviewing new source files easier since adding sources will be
@@ -12,6 +21,7 @@ find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 set(APP_SOURCES
 	src/Application.cpp
 	src/electronics_manager.cpp
+	src/settings/Settings.cpp
 )
 
 # Build implementation as an OBJECT library
@@ -21,6 +31,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC include)
 target_link_libraries(${PROJECT_NAME} PUBLIC
 	Qt6::Core
 	Qt6::Widgets
+	nlohmann_json::nlohmann_json
 )
 
 
@@ -59,4 +70,14 @@ if(ENABLE_TESTING)
 		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
 		DEPENDS my_tests
 	)
+
+	# Test settings config file generation
+	add_executable(test_settings
+		tests/test_settings.cpp
+	)
+
+	target_include_directories(test_settings PRIVATE include)
+	set_target_properties(test_settings PROPERTIES CXX_STANDARD 17 CXX_STANDARD_REQUIRED YES)
+
+	target_link_libraries(test_settings PRIVATE ${PROJECT_NAME} nlohmann_json::nlohmann_json)
 endif()
