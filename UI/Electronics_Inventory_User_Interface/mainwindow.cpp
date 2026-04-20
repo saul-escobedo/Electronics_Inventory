@@ -137,28 +137,25 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(ui->Settings_Button, &QPushButton::clicked, this, [this]() {
         Settings dialog(this);
+
+        connect(&dialog, &Settings::settingsChanged,
+                this, [this]()
+                {
+                    dbManager.reopenDatabase();
+
+                    ui->Inventory_Table->setRowCount(0);
+
+                    QVector<Item> items = dbManager.getAllItems();
+                    for(const Item &item : items)
+                    {
+                        add_item(item.name, item.quantity, item.partNumber, item.imagePath);
+                    }
+
+                    update_total_parts_label();
+                });
+
         dialog.exec();
     });
-
-    Settings dialog(this);
-
-    connect(&dialog, &Settings::settingsChanged,
-            this, [this]()
-    {
-        dbManager.reopenDatabase();
-
-        ui->Inventory_Table->setRowCount(0);
-
-        QVector<Item> items = dbManager.getAllItems();
-        for(const Item &item : items)
-        {
-            add_item(item.name, item.quantity, item.partNumber, item.imagePath);
-        }
-
-        update_total_parts_label();
-    });
-
-    dialog.exec();
 }
 
 //Updates the number of current stock.
