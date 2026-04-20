@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <cassert>
+
 using namespace ecim;
 
 #define DB_BACKEND_NAME "sqlite3"
@@ -83,6 +85,9 @@ inline static void s_combineHash(uint64_t& s, const T& v) {
 
 static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type>);
 static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int batchSize);
+static const char* s_componentTypeAsString(ElectronicComponent::Type);
+static std::string s_componentPropertyAsString(ComponentProperty property, std::optional<ElectronicComponent::Type>);
+static std::string s_genSQLCondition(const Filter& filter, std::optional<ElectronicComponent::Type>);
 static int s_chooseBestBatchSize(int sizeHint);
 static int s_floorPowerOf2(int x);
 
@@ -1324,10 +1329,63 @@ sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(ElectronicComponent::Type type, 
     return newAccessor;
 }
 
-void SQLiteDatabase::_applyMassQueryBindings(sqlite3_stmt* accessor, const MassQueryConfig& config, size_t pageIndex) {
+void SQLiteDatabase::_applyMassQueryBindings(
+    sqlite3_stmt* accessor,
+    const MassQueryConfig& config,
+    size_t pageIndex,
+    std::optional<ElectronicComponent::Type> type
+) {
     sqlite3_clear_bindings(accessor);
 
     int paramIndex = 1;
+
+    for(const Filter& filter : config.filters) {
+        if(!filter.isValid()) {
+            paramIndex++;
+            if(filter.operation == Filter::Operation::InRange ||
+                filter.operation == Filter::Operation::NotInRange)
+                paramIndex++;
+            continue;
+        }
+
+        switch(filter.value.index()) {
+        case 0: { // String
+            const std::string& str = std::get<std::string>(filter.value);
+
+            size_t length = str.length();
+            const char* format = "%s";
+            if(filter.operation == Filter::Operation::Contains) { format = "%%%s%%"; length += 2; }
+            else if(filter.operation == Filter::Operation::StartsWith) { format = "%s%%"; length += 1; }
+            else if(filter.operation == Filter::Operation::EndsWith) { format = "%%%s"; length += 1; }
+
+            char* pattern = static_cast<char*>(malloc(length + 1));
+            snprintf(pattern, length, format, str.c_str());
+
+            sqlite3_bind_text(accessor, paramIndex++, pattern, length, free);
+            break;
+        }
+        case 1: // Double
+            sqlite3_bind_double(accessor, paramIndex++, std::get<double>(filter.value));
+            break;
+        case 2: // BigInt
+            sqlite3_bind_int64(accessor, paramIndex++, std::get<size_t>(filter.value));
+            break;
+        case 3: { // Double range
+            std::pair<double, double> range = std::get<std::pair<double, double>>(filter.value);
+            sqlite3_bind_double(accessor, paramIndex++, range.first);
+            sqlite3_bind_double(accessor, paramIndex++, range.second);
+            break;
+        }
+        case 4: { // BigInt Range
+            std::pair<size_t, size_t> range = std::get<std::pair<size_t, size_t>>(filter.value);
+            sqlite3_bind_int64(accessor, paramIndex++, range.first);
+            sqlite3_bind_int64(accessor, paramIndex++, range.second);
+            break;
+        }
+        default:
+            sqlite3_bind_null(accessor, paramIndex++);
+        }
+    }
 
     if(config.pagination.has_value()) {
         size_t itemsPerPage = config.pagination.value().itemsPerPage;
@@ -1676,21 +1734,71 @@ void SQLiteDatabase::_getIntegratedCircuitsInBatches(
 
 static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type> type) {
     std::string sql;
+    int andKeyword = 0;
+
     sql.reserve(256);
 
+    sql = "SELECT ";
+
     if(config.statisticsOnly)
-        sql = "SELECT COUNT(*) FROM ElectronicComponents ";
+        sql += "COUNT(*) ";
     else
-        sql = "SELECT * FROM ElectronicComponents ";
+        sql += "ElectronicComponents.* ";
+
+    sql += "FROM ElectronicComponents ";
 
     if(type.has_value()) {
-        sql += "WHERE Type = ";
+        sql += "LEFT JOIN ";
+        sql += s_componentTypeAsString(type.value());
+        sql += " ON ElectronicComponents.ComponentID = ";
+        sql += s_componentTypeAsString(type.value());
+        sql += ".ComponentID ";
+    }
+
+    if(type.has_value() || !config.filters.empty())
+        sql += "WHERE ";
+
+    if(type.has_value()) {
+        sql += "ElectronicComponents.Type = ";
         sql += std::to_string(static_cast<int>(type.value()));
+        sql += ' ';
+        andKeyword++;
+    }
+
+    for(const Filter& filter : config.filters) {
+        if(andKeyword) {
+            sql += "AND ";
+            andKeyword--;
+        }
+
+        sql += s_genSQLCondition(filter, type);
         sql += ' ';
     }
 
+    if(config.order.has_value() || config.sortBy.has_value())
+        sql += "ORDER BY ";
+
+    if(config.sortBy.has_value()) {
+        sql += s_componentPropertyAsString(config.sortBy.value(), type);
+        sql += ' ';
+    } else if(config.order.has_value())
+        sql += "ElectronicComponents.ComponentID ";
+
+    if(config.order.has_value()) {
+        switch(config.order.value()) {
+        case SortOrder::Acending:
+            sql += "ASC ";
+            break;
+        case SortOrder::Decending:
+            sql += "DESC ";
+            break;
+        default:
+            break;
+        }
+    }
+
     if(config.pagination.has_value())
-        sql += "LIMIT ? OFFSET ? ";
+        sql += "LIMIT ? OFFSET ?";
 
     return sql;
 }
@@ -1700,31 +1808,8 @@ static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int
     sql.reserve(256);
 
     sql = "SELECT * FROM ";
-
-    switch(type){
-    case ElectronicComponent::Type::Resistor:
-        sql += "Resistors ";
-        break;
-    case ElectronicComponent::Type::Capacitor:
-        sql += "Capacitors ";
-        break;
-    case ElectronicComponent::Type::Inductor:
-        sql += "Inductors ";
-        break;
-    case ElectronicComponent::Type::Diode:
-        sql += "Diodes ";
-        break;
-    case ElectronicComponent::Type::BJTransistor:
-        sql += "BJTransistors ";
-        break;
-    case ElectronicComponent::Type::FETransistor:
-        sql += "FETransistors ";
-        break;
-    case ElectronicComponent::Type::IntegratedCircuit:
-        sql += "IntegratedCircuits ";
-    }
-
-    sql += "WHERE ComponentID IN (";
+    sql += s_componentTypeAsString(type);
+    sql += " WHERE ComponentID IN (";
 
     for(int i = 1; i < batchSize; i++)
         sql += "?, ";
@@ -1732,6 +1817,174 @@ static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int
     sql += "?)";
 
     return sql;
+}
+
+static const char* s_componentTypeAsString(ElectronicComponent::Type type) {
+    switch(type){
+    case ElectronicComponent::Type::Resistor:
+        return "Resistors";
+    case ElectronicComponent::Type::Capacitor:
+        return "Capacitors";
+    case ElectronicComponent::Type::Inductor:
+        return "Inductors";
+    case ElectronicComponent::Type::Diode:
+        return "Diodes";
+    case ElectronicComponent::Type::BJTransistor:
+        return "BJTransistors";
+    case ElectronicComponent::Type::FETransistor:
+        return "FETransistors";
+    case ElectronicComponent::Type::IntegratedCircuit:
+        return "IntegratedCircuits";
+    }
+
+    return "null";
+}
+
+// Source - https://stackoverflow.com/a/4415646
+// Posted by Michael Burr, modified by community. See post 'Timeline' for change history
+// Retrieved 2026-04-20, License - CC BY-SA 2.5
+//
+#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
+
+static std::string s_componentPropertyAsString(ComponentProperty property, std::optional<ElectronicComponent::Type> type) {
+    static const char* const BASE_PROP_MAP[] = {
+        "ComponentID",
+        "Name",
+        "Manufacturer",
+        "PartNumber",
+        "Description",
+        "Quantity",
+        "VoltageRating",
+        "CurrentRating",
+        "PowerRating"
+    };
+
+    static const char* const RESISTOR_PROP_MAP[] = {
+        "Resistance",
+        "ToleranceBand"
+    };
+
+    static const char* const CAPACITOR_PROP_MAP[] = {
+        "Capacitance",
+        "Type"
+    };
+
+    static const char* const INDUCTOR_PROP_MAP[] = {
+        "Inductance"
+    };
+
+    static const char* const DIODE_PROP_MAP[] = {
+        "Type",
+        "ForwardVoltage"
+    };
+
+    static const char* const BJT_PROP_MAP[] = {
+        "Gain"
+    };
+
+    static const char* const FET_PROP_MAP[] = {
+        "ThresholdVoltage"
+    };
+
+    static const char* const CHIP_PROP_MAP[] = {
+        "PinCount",
+        "Width",
+        "Height",
+        "Length"
+    };
+
+    std::string str;
+    str.reserve(64);
+
+    int propIndex = type.has_value() ?
+        static_cast<int>(property) - static_cast<int>(ElectronicComponent::Property::End) :
+        static_cast<int>(property);
+
+    if(type.has_value())
+        str += s_componentTypeAsString(type.value());
+    else
+        str += "ElectronicComponents";
+
+    str += '.';
+
+    if(!type.has_value()) {
+        assert(propIndex < COUNT_OF(BASE_PROP_MAP));
+        str += BASE_PROP_MAP[propIndex];
+        return str;
+    }
+
+    switch(type.value()) {
+    case ElectronicComponent::Type::Resistor:
+        assert(propIndex < COUNT_OF(RESISTOR_PROP_MAP));
+        str += RESISTOR_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::Capacitor:
+        assert(propIndex < COUNT_OF(CAPACITOR_PROP_MAP));
+        str += CAPACITOR_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::Inductor:
+        assert(propIndex < COUNT_OF(INDUCTOR_PROP_MAP));
+        str += INDUCTOR_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::Diode:
+        assert(propIndex < COUNT_OF(DIODE_PROP_MAP));
+        str += DIODE_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::BJTransistor:
+        assert(propIndex < COUNT_OF(BJT_PROP_MAP));
+        str += BJT_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::FETransistor:
+        assert(propIndex < COUNT_OF(FET_PROP_MAP));
+        str += FET_PROP_MAP[propIndex];
+        break;
+    case ElectronicComponent::Type::IntegratedCircuit:
+        assert(propIndex < COUNT_OF(CHIP_PROP_MAP));
+        str += CHIP_PROP_MAP[propIndex];
+    }
+
+    return str;
+}
+
+static std::string s_genSQLCondition(const Filter& filter, std::optional<ElectronicComponent::Type> type) {
+    std::string str;
+    str.reserve(128);
+
+    str += s_componentPropertyAsString(filter.property, type);
+    str += ' ';
+
+    switch(filter.operation) {
+    case Filter::Operation::Equals:
+        str += "= ?";
+        break;
+    case Filter::Operation::NotEquals:
+        str += "!= ?";
+        break;
+    case Filter::Operation::LessThan:
+        str += "< ?";
+        break;
+    case Filter::Operation::GreaterThan:
+        str += "> ?";
+        break;
+    case Filter::Operation::LessThanOrEqual:
+        str += "<= ?";
+        break;
+    case Filter::Operation::GreaterThanOrEqual:
+        str += ">= ?";
+        break;
+    case Filter::Operation::Contains:
+    case Filter::Operation::StartsWith:
+    case Filter::Operation::EndsWith:
+        str += "LIKE ?";
+        break;
+    case Filter::Operation::NotInRange:
+        str += "NOT ";
+    case Filter::Operation::InRange:
+        str += "BETWEEN ? AND ?";
+        break;
+    }
+
+    return str;
 }
 
 static int s_chooseBestBatchSize(int sizeHint) {
