@@ -1,9 +1,13 @@
+#include "database/MassQueryConfig.hpp"
+#include "database/exceptions/DatabaseException.hpp"
 #include "database/exceptions/Exceptions.hpp"
 #include "database/SQLiteDatabase.hpp"
 #include "electrical/ElectronicComponent.hpp"
 #include "electrical/Resistor.hpp"
 
 #include <gtest/gtest.h>
+
+#include <random>
 
 // Base config used for testing base electrical properties of components
 #define BCONFIG_NAME "R1"
@@ -80,7 +84,7 @@ TEST(SQLiteBackend, CheckInitialization) {
 }
 
 TEST(SQLiteBackend, AddAndGetSingleComponents) {
-    SQLiteDatabase sqlite("test_db.sqlite");
+    SQLiteDatabase sqlite(":memory:");
     Database* db = &sqlite;
 
     ComponentID componentID;
@@ -155,12 +159,10 @@ TEST(SQLiteBackend, AddAndGetSingleComponents) {
     EXPECT_NEAR(ic->length(), 2.0, 1e-9);
 
     db->shutdown();
-
-    removeFile("test_db.sqlite");
 }
 
 TEST(SQLiteBackend, RemoveComponent) {
-    SQLiteDatabase sqlite("test_db.sqlite");
+    SQLiteDatabase sqlite(":memory:");
     Database* db = &sqlite;
 
     ComponentID resistorID;
@@ -183,12 +185,10 @@ TEST(SQLiteBackend, RemoveComponent) {
     EXPECT_EQ(component, nullptr);
 
     db->shutdown();
-
-    removeFile("test_db.sqlite");
 }
 
 TEST(SQLiteBackend, EditComponent) {
-    SQLiteDatabase sqlite("test_db.sqlite");
+    SQLiteDatabase sqlite(":memory:");
     Database* db = &sqlite;
 
     ComponentID resistorID;
@@ -304,8 +304,6 @@ TEST(SQLiteBackend, EditComponent) {
     EXPECT_EQ(ic->quantity(), BCONFIG_QUANTITY);
 
     db->shutdown();
-
-    removeFile("test_db.sqlite");
 }
 
 TEST(SQLiteBackend, EnsurePersistance) {
@@ -348,7 +346,7 @@ TEST(SQLiteBackend, EnsurePersistance) {
 }
 
 TEST(SQLiteBackend, GetAllComponents) {
-    SQLiteDatabase sqlite("test_db.sqlite");
+    SQLiteDatabase sqlite(":memory:");
     Database* db = &sqlite;
 
     db->initialize();
@@ -357,42 +355,277 @@ TEST(SQLiteBackend, GetAllComponents) {
     Capacitor capacitor(baseConfig, Capacitor::Type::AluminumElectrolytic, 100e-6);
     Inductor inductor(baseConfig, 80e-6);
     Diode diode(baseConfig, 0.4, Diode::Type::Schottky);
-	BJTransistor bjTransistor(baseConfig, 120);
-	FETransistor feTransistor(baseConfig, 2.4);
-	IntegratedCircuit chip(baseConfig, 8, 8e-3, 6e-3, 2e-3);
+    BJTransistor bjTransistor(baseConfig, 120);
+    FETransistor feTransistor(baseConfig, 2.4);
+    IntegratedCircuit chip(baseConfig, 8, 8e-3, 6e-3, 2e-3);
 
-	Resistor* resistorPtr;
-	Capacitor* capacitorPtr;
-	Inductor* inductorPtr;
-	Diode* diodePtr;
-	BJTransistor* bjTransistorPtr;
-	FETransistor* feTransistorPtr;
+    db->addComponent(resistor);
+    db->addComponent(capacitor);
+    db->addComponent(inductor);
+    db->addComponent(diode);
+    db->addComponent(bjTransistor);
+    db->addComponent(feTransistor);
+    db->addComponent(chip);
 
-	db->addComponent(resistor);
-	db->addComponent(capacitor);
-	db->addComponent(inductor);
-	db->addComponent(diode);
-	db->addComponent(bjTransistor);
-	db->addComponent(feTransistor);
-	db->addComponent(chip);
+    MassQueryResult result = db->getAllComponents();
 
-	MassQueryResult result = db->getAllComponents();
+    EXPECT_EQ(result.numItems, 7);
+    EXPECT_EQ(result.numPages, 1);
 
-	EXPECT_EQ(result.totalItems, 7);
-	EXPECT_EQ(result.totalPages, 1);
-	
-	int i = 0;
-	for(std::unique_ptr<ElectronicComponent>& p : result.items) {
-		ElectronicComponent* c = p.get();
+    // Determines if all types of components was returned once
+    int i = 0;
 
-		switch(c->type()) {
-		case ElectronicComponent::Type::Resistor:
-			resistorPtr = dynamic_case<Resistor*>(c);
-			EXPECT_NE(resistorPtr, nullptr);
-		}
-	}
+    Resistor* resistorPtr;
+    Capacitor* capacitorPtr;
+    Inductor* inductorPtr;
+    Diode* diodePtr;
+    BJTransistor* bjTransistorPtr;
+    FETransistor* feTransistorPtr;
+    IntegratedCircuit* chipPtr;
+    for(std::unique_ptr<ElectronicComponent>& p : result.items) {
+        ElectronicComponent* c = p.get();
+
+        switch(c->type()) {
+        case ElectronicComponent::Type::Resistor:
+            resistorPtr = dynamic_cast<Resistor*>(c);
+            EXPECT_NE(resistorPtr, nullptr);
+            EXPECT_EQ(resistorPtr->resistance(), 220);
+            i |= 1 << 0;
+            break;
+        case ElectronicComponent::Type::Capacitor:
+            capacitorPtr = dynamic_cast<Capacitor*>(c);
+            EXPECT_NE(capacitorPtr, nullptr);
+            EXPECT_NEAR(capacitorPtr->capacitance(), 100e-6, 1e-9);
+            i |= 1 << 1;
+            break;
+        case ElectronicComponent::Type::Inductor:
+            inductorPtr = dynamic_cast<Inductor*>(c);
+            EXPECT_NE(inductorPtr, nullptr);
+            EXPECT_NEAR(inductorPtr->inductance(), 80e-6, 1e-9);
+            i |= 1 << 2;
+            break;
+        case ElectronicComponent::Type::Diode:
+            diodePtr = dynamic_cast<Diode*>(c);
+            EXPECT_NE(diodePtr, nullptr);
+            EXPECT_NEAR(diodePtr->forwardVoltage(), 0.4, 1e-9);
+            i |= 1 << 3;
+            break;
+        case ElectronicComponent::Type::BJTransistor:
+            bjTransistorPtr = dynamic_cast<BJTransistor*>(c);
+            EXPECT_NE(bjTransistorPtr, nullptr);
+            EXPECT_EQ(bjTransistorPtr->gain(), 120);
+            i |= 1 << 4;
+            break;
+        case ElectronicComponent::Type::FETransistor:
+            feTransistorPtr = dynamic_cast<FETransistor*>(c);
+            EXPECT_NE(feTransistorPtr, nullptr);
+            EXPECT_NEAR(feTransistorPtr->thresholdVoltage(), 2.4, 1e-9);
+            i |= 1 << 5;
+            break;
+        case ElectronicComponent::Type::IntegratedCircuit:
+            chipPtr = dynamic_cast<IntegratedCircuit*>(c);
+            EXPECT_NE(chipPtr, nullptr);
+            EXPECT_EQ(chipPtr->pinCount(), 8);
+            i |= 1 << 6;
+            break;
+        }
+    }
+
+    // Did the db return all types of components as expected?
+    EXPECT_EQ(i, 0b1111111);
+
+    result = db->getAllComponents({ .statisticsOnly = true });
+
+    // Did it only return statistics?
+    EXPECT_EQ(result.numItems, 7);
+    EXPECT_EQ(result.numPages, 1);
+    EXPECT_EQ(result.items.size(), 0);
+
+    // Should throw if trying to filter by a property that is not generic
+    MassQueryConfig problematicQuery = {
+        .filters = {
+            { static_cast<ComponentProperty>(Resistor::Property::Resistance), Filter::Operation::Equals, 220.0 }
+        }
+    };
+    EXPECT_THROW(db->getAllComponents(problematicQuery), DatabaseException);
 
     db->shutdown();
+}
 
-    removeFile("test_db.sqlite");
+TEST(SQLiteBackend, GetAllComponentsByType) {
+    SQLiteDatabase sqlite(":memory:");
+    Database* db = &sqlite;
+
+    db->initialize();
+
+    const int numResistors = 38;
+    const int numCapacitors = 45;
+    const int numInductors = 15;
+    const int numDiodes = 18;
+    const int numBJTs = 19;
+    const int numFETs = 20;
+    const int numChips = 70;
+    int value = 0;
+
+    for(int i = 0; i < numResistors; i++)
+        db->addComponent(Resistor(baseConfig, value++, 0.05));
+
+    for(int i = 0; i < numCapacitors; i++)
+        db->addComponent(Capacitor(baseConfig, Capacitor::Type::Ceramic, value++));
+
+    for(int i = 0; i < numInductors; i++)
+        db->addComponent(Inductor(baseConfig, value++));
+
+    for(int i = 0; i < numDiodes; i++)
+        db->addComponent(Diode(baseConfig, value++, Diode::Type::Regular));
+
+    for(int i = 0; i < numBJTs; i++)
+        db->addComponent(BJTransistor(baseConfig, value++));
+
+    for(int i = 0; i < numFETs; i++)
+        db->addComponent(FETransistor(baseConfig, value++));
+
+    for(int i = 0; i < numChips; i++)
+        db->addComponent(IntegratedCircuit(baseConfig, value++, 1, 1, 1));
+
+    value = 0;
+
+    // Test if all the resistors have been correctly returned
+    MassQueryResult result = db->getAllComponentsByType(ElectronicComponent::Type::Resistor);
+    EXPECT_EQ(result.items.size(), numResistors);
+    for(auto& resistor : result.items) {
+        Resistor* ptr = dynamic_cast<Resistor*>(resistor.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->resistance());
+    }
+
+    // Test if all the capacitor have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Capacitor);
+    EXPECT_EQ(result.items.size(), numCapacitors);
+    for(auto& capacitor : result.items) {
+        Capacitor* ptr = dynamic_cast<Capacitor*>(capacitor.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->capacitance());
+    }
+
+    // Test if all the inductors have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Inductor);
+    EXPECT_EQ(result.items.size(), numInductors);
+    for(auto& inductor : result.items) {
+        Inductor* ptr = dynamic_cast<Inductor*>(inductor.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->inductance());
+    }
+
+    // Test if all the diodes have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Diode);
+    EXPECT_EQ(result.items.size(), numDiodes);
+    for(auto& diode : result.items) {
+        Diode* ptr = dynamic_cast<Diode*>(diode.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->forwardVoltage());
+    }
+
+    // Test if all the BJTransistors have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::BJTransistor);
+    EXPECT_EQ(result.items.size(), numBJTs);
+    for(auto& bjt : result.items) {
+        BJTransistor* ptr = dynamic_cast<BJTransistor*>(bjt.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->gain());
+    }
+
+    // Test if all the FETransistors have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::FETransistor);
+    EXPECT_EQ(result.items.size(), numFETs);
+    for(auto& fet : result.items) {
+        FETransistor* ptr = dynamic_cast<FETransistor*>(fet.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->thresholdVoltage());
+    }
+
+    // Test if all the IntegratedCircuits have been correctly returned
+    result = db->getAllComponentsByType(ElectronicComponent::Type::IntegratedCircuit);
+    EXPECT_EQ(result.items.size(), numChips);
+    for(auto& chip : result.items) {
+        IntegratedCircuit* ptr = dynamic_cast<IntegratedCircuit*>(chip.get());
+        EXPECT_NE(ptr, nullptr);
+        EXPECT_EQ(value++, ptr->pinCount());
+    }
+
+    db->shutdown();
+}
+
+TEST(SQLiteBackend, Pagination) {
+    SQLiteDatabase sqlite(":memory:");
+    Database* db = &sqlite;
+
+    db->initialize();
+
+    const int itemsPerPage = 20;
+
+    const int numResistors = 360;
+    const int numCapacitors = 280;
+    const int numInductors = 120;
+    const int total = numResistors + numCapacitors + numInductors;
+    int value = 0;
+
+    for(int i = 0; i < numResistors; i++)
+        db->addComponent(Resistor(baseConfig, value++, 0.05));
+
+    for(int i = 0; i < numCapacitors; i++)
+        db->addComponent(Capacitor(baseConfig, Capacitor::Type::Ceramic, value++));
+
+    for(int i = 0; i < numInductors; i++)
+        db->addComponent(Inductor(baseConfig, value++));
+
+    MassQueryResult result;
+
+    EXPECT_NO_THROW(result = db->getAllComponents({
+        .pagination = Pagination(1, itemsPerPage),
+        .statisticsOnly = true
+    }));
+
+    // statisticsOnly = true should not make it return items
+    EXPECT_EQ(result.items.size(), 0);
+    EXPECT_EQ(result.numItems, itemsPerPage);
+    EXPECT_EQ(result.numPages, total / itemsPerPage);
+    EXPECT_EQ(result.currentPage, 1);
+
+    EXPECT_NO_THROW(result = db->getAllComponents({
+        .pagination = Pagination(1500, itemsPerPage),
+        .statisticsOnly = true
+    }));
+
+    // Current Page should be set within limits
+    EXPECT_EQ(result.currentPage, total / itemsPerPage);
+    EXPECT_EQ(result.numItems, itemsPerPage);
+
+    // Turn to the page where the capacitors are
+    EXPECT_NO_THROW(result = db->getAllComponents({
+        .pagination = Pagination(numResistors / itemsPerPage + 1, itemsPerPage),
+    }));
+
+    // See if we get the capacitors (because they only exist on later pages)
+    value = numResistors;
+    for(auto& item : result.items){
+        Capacitor* cap = dynamic_cast<Capacitor*>(item.get());
+        EXPECT_NE(cap, nullptr);
+        EXPECT_EQ(cap->capacitance(), value++);
+    }
+
+    // Turn to the page where the inductors are
+    EXPECT_NO_THROW(result = db->getAllComponents({
+        .pagination = Pagination((numResistors + numCapacitors) / itemsPerPage + 1, itemsPerPage),
+    }));
+
+    // See if we get the inductors (because they only exist on the last pages)
+    value = numResistors + numCapacitors;
+    for(auto& item : result.items){
+        Inductor* ind = dynamic_cast<Inductor*>(item.get());
+        EXPECT_NE(ind, nullptr);
+        EXPECT_EQ(ind->inductance(), value++);
+    }
+
+    db->shutdown();
 }

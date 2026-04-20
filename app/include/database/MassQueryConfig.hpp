@@ -11,9 +11,14 @@ namespace ecim {
         int itemsPerPage = 20;
         int pageNumber = 1; // Pages start at 1
 
+        Pagination() {}
         Pagination(int pageNumber, int itemsPerPage) :
         pageNumber(pageNumber),
         itemsPerPage(itemsPerPage) {}
+
+        bool operator==(const Pagination& other) const;
+        bool operator!=(const Pagination& other) const;
+        std::size_t hash() const;
     };
 
     enum class SortOrder {
@@ -45,6 +50,10 @@ namespace ecim {
             std::pair<double, double>, // For InRange operations
             std::pair<size_t, size_t>  // For InRange operations
         > value;
+
+        bool operator==(const Filter& other) const;
+        bool operator!=(const Filter& other) const;
+        std::size_t hash() const;
     };
 
     /// @brief Mass query settings.
@@ -76,8 +85,33 @@ namespace ecim {
 
         /// @brief If set to true, the result will not return any items.
         ///
-        /// @note It is set to only to retrieve statistics; it is when
+        /// @note When set, the intent is to only to retrieve statistics; when
         /// aquisition of data is not nessesary.
         bool statisticsOnly = false;
+
+        /// @brief Check if two mass queries have the same configuration
+        /// to each other but NOT THIER VALUES. For example, two configs are
+        /// not equal to each other if they have different sort orders, but
+        /// they are equal if pagination is enabled on both even with different
+        /// page numbers and/or page sizes.
+        ///
+        /// @note This is primarily used to cache a dynamically compiled
+        /// prepared DB statements by using the query as the key
+        bool operator==(const MassQueryConfig& other) const;
+        bool operator!=(const MassQueryConfig& other) const;
+
+        /// @brief Calculate hash of mass query
+        ///
+        /// @note This is primarily used to cache a dynamically compiled
+        /// prepared DB statements by using the query as the key
+        std::size_t hash() const;
     };
 }
+
+// This templated structure allows MassQueryConfig to be used in a HashMap
+template<>
+struct std::hash<ecim::MassQueryConfig> {
+    std::size_t operator()(const ecim::MassQueryConfig& config) const {
+        return config.hash();
+    }
+};

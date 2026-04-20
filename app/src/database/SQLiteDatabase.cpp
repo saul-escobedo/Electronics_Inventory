@@ -1,5 +1,6 @@
 #include "database/SQLiteDatabase.hpp"
 #include "database/EmbeddedSQLCode.hpp"
+#include "database/MassQueryConfig.hpp"
 #include "database/exceptions/Exceptions.hpp"
 
 #include "electrical/ElectronicComponent.hpp"
@@ -7,11 +8,15 @@
 
 #include <cstddef>
 #include <memory>
-#include <optional>
-
+#include <string>
+#include <vector>
 using namespace ecim;
 
 #define DB_BACKEND_NAME "sqlite3"
+
+#define SHOULD_BATCH_THRESHOLD 32
+#define MIN_BATCH_SIZE 16
+#define MAX_BATCH_SIZE 4096
 
 // Statement accessor / SQL code pairs. Used to prepare the accessors'
 // sqlite statements with their respective SQL code
@@ -52,6 +57,34 @@ static const std::pair<int, const char*> ACCESSORS_CODE[] = {
     { offsetof(SQLAccessors, editFETransistor), DBSQL_EDIT_FE_TRANSISTOR },
     { offsetof(SQLAccessors, editIntegratedCircuit), DBSQL_EDIT_INTEGRATED_CIRCUIT }
 };
+
+struct SQLiteDatabase::ComponentBase {
+    ComponentID ID;
+    ElectronicComponent::Type type;
+    ElectronicComponent::BaseConfig config;
+    size_t next;
+};
+
+struct SQLiteDatabase::BatchesCount {
+    size_t numResistors;
+    size_t numCapacitors;
+    size_t numInductors;
+    size_t numDiodes;
+    size_t numBJTs;
+    size_t numFETs;
+    size_t numChips;
+};
+
+template <class T>
+inline static void s_combineHash(uint64_t& s, const T& v) {
+    std::hash<T> hash;
+    s ^= hash(v) + 0x9e3779b9 + (s<< 6) + (s>> 2);
+}
+
+static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type>);
+static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int batchSize);
+static int s_chooseBestBatchSize(int sizeHint);
+static int s_floorPowerOf2(int x);
 
 SQLiteDatabase::SQLiteDatabase(
     const std::string& dbFilename
@@ -296,7 +329,6 @@ std::unique_ptr<ElectronicComponent> SQLiteDatabase::getComponent(
 ) {
     ElectronicComponent::BaseConfig config;
     ElectronicComponent::Type type;
-    std::unique_ptr<ElectronicComponent> result;
     int ret;
 
     _checkInitialization();
@@ -345,9 +377,11 @@ std::unique_ptr<ElectronicComponent> SQLiteDatabase::getComponent(
 MassQueryResult SQLiteDatabase::getAllComponents(
     const MassQueryConfig& queryConfig
 ) {
-    _checkInitialization();
+    for(const Filter& filter : queryConfig.filters)
+        if(static_cast<size_t>(filter.property) >= static_cast<size_t>(ElectronicComponent::Property::End))
+            _throwError("Non-generic property used in a generic mass query");
 
-    return MassQueryResult();
+    return _getAllComponents(queryConfig);
 }
 
 MassQueryResult SQLiteDatabase::getAllComponentsByType(
@@ -356,7 +390,7 @@ MassQueryResult SQLiteDatabase::getAllComponentsByType(
 ) {
     _checkInitialization();
 
-    return MassQueryResult();
+    return _getAllComponents(queryConfig, type);
 }
 
 std::unique_ptr<Transaction> SQLiteDatabase::startTransaction() {
@@ -398,7 +432,7 @@ void SQLiteDatabase::_createSQLiteAccessors() {
         sqlite3_stmt** a = reinterpret_cast<sqlite3_stmt**>(
             reinterpret_cast<char*>(&m_accessors) + accessor.first);
 
-        ret = sqlite3_prepare(m_db, accessor.second, -1, a, nullptr);
+        ret = sqlite3_prepare_v2(m_db, accessor.second, -1, a, nullptr);
 
         if(ret != SQLITE_OK)
             _throwError("Failed to prepare accessor SQL statement", accessor.second);
@@ -416,6 +450,22 @@ void SQLiteDatabase::_destroySQLiteAccessors() {
 
         if(ret != SQLITE_OK)
             _throwError("Failed to destroy accessor SQL statement", accessor.second);
+    }
+
+    // Finalize any mass accessors in cache
+    for(auto& massAccessor : m_massQueryAccessorsCache) {
+        ret = sqlite3_finalize(massAccessor.second);
+
+        if(ret != SQLITE_OK)
+            _throwError("Failed to destroy mass accessor SQL statement");
+    }
+
+    // Finalize any batch accessors in cache
+    for(auto& batchAccessor : m_batchAccessorsCache) {
+        ret = sqlite3_finalize(batchAccessor.second);
+
+        if(ret != SQLITE_OK)
+            _throwError("Failed to destroy batch accessor SQL statement");
     }
 }
 
@@ -1062,4 +1112,648 @@ void SQLiteDatabase::_editIntegratedCircuit(ComponentID ID, const IntegratedCirc
     ret = sqlite3_step(m_accessors.editIntegratedCircuit);
 
     _checkResultCode(ret, "Unable to edit IntegratedCircuit properties");
+}
+
+MassQueryResult SQLiteDatabase::_getAllComponents(
+    const MassQueryConfig& config,
+    std::optional<ElectronicComponent::Type> type
+) {
+    MassQueryResult result;
+    int ret;
+
+    _checkInitialization();
+
+    _getStatistics(config, type, result.numPages, result.totalNumItems);
+
+    result.currentPage = config.pagination.has_value() ?
+        config.pagination.value().pageNumber : 1;
+
+    result.currentPage = std::min(result.numPages, result.currentPage);
+
+    if(!config.pagination.has_value() || result.totalNumItems == 0)
+        result.numItems = result.totalNumItems;
+    else {
+        size_t itemsPerPage = config.pagination.value().itemsPerPage;
+        result.numItems = result.totalNumItems - (result.currentPage - 1) * itemsPerPage;
+        result.numItems = std::min(itemsPerPage, result.numItems);
+    }
+
+    if(result.totalNumItems == 0 || config.statisticsOnly)
+        return result;
+
+    sqlite3_stmt* accessor = _getMassQueryAccessor(config, type);
+    sqlite3_reset(accessor);
+
+    _applyMassQueryBindings(accessor, config, result.currentPage - 1);
+
+    std::vector<ComponentBase> bases;
+    BatchesCount amounts = {};
+    bases.reserve(result.numItems);
+    for(int i = 0;;i++) {
+        ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Unable to get electrical component");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        bases.push_back({});
+
+        bases[i].ID = sqlite3_column_int64(accessor, 0);
+
+        bases[i].config.name = reinterpret_cast<const char*>(
+            sqlite3_column_text(accessor, 1)
+        );
+
+        bases[i].type = static_cast<ElectronicComponent::Type>(
+            sqlite3_column_int(accessor, 2)
+        );
+
+        bases[i].config.manufacturer = reinterpret_cast<const char*>(
+            sqlite3_column_text(accessor, 3)
+        );
+
+        if(sqlite3_column_type(accessor, 4) == SQLITE_TEXT)
+            bases[i].config.partNumber = reinterpret_cast<const char*>(
+               sqlite3_column_text(accessor, 4)
+            );
+
+        if(sqlite3_column_type(accessor, 5) == SQLITE_TEXT)
+            bases[i].config.description = reinterpret_cast<const char*>(
+                sqlite3_column_text(accessor, 5)
+            );
+
+        bases[i].config.quantity = sqlite3_column_int(accessor, 6);
+
+        bases[i].config.rating.voltage = sqlite3_column_double(accessor, 7);
+        bases[i].config.rating.current = sqlite3_column_double(accessor, 8);
+        bases[i].config.rating.power = sqlite3_column_double(accessor, 9);
+
+        bases[i].next = i + 1;
+
+        switch(bases[i].type) {
+        case ElectronicComponent::Type::Resistor:
+            amounts.numResistors++;
+            break;
+        case ElectronicComponent::Type::Capacitor:
+            amounts.numCapacitors++;
+            break;
+        case ElectronicComponent::Type::Inductor:
+            amounts.numInductors++;
+            break;
+        case ElectronicComponent::Type::Diode:
+            amounts.numDiodes++;
+            break;
+        case ElectronicComponent::Type::BJTransistor:
+            amounts.numBJTs++;
+            break;
+        case ElectronicComponent::Type::FETransistor:
+            amounts.numFETs++;
+            break;
+        case ElectronicComponent::Type::IntegratedCircuit:
+            amounts.numChips++;
+        }
+
+        if(bases[i].next == result.numItems)
+            bases[i].next = 0; // Zero signifies that it is at the end of list
+    }
+
+    if(bases.size() != result.numItems)
+        _throwError("The number of items expected does not equal the number of items returned from sqlite");
+
+    // Perform simple fetching per row if there isn't too many items to process
+    if(bases.size() < SHOULD_BATCH_THRESHOLD) {
+        for(ComponentBase& base : bases)
+            result.items.push_back(
+                _getAdditionalComponentProperties(base.ID, base.config, base.type));
+
+        return result;
+    }
+
+    // Perform batch fetching if there are many items to process
+    _getAdditionalComponentPropertiesInBatches(bases, amounts, result.items);
+
+    return result;
+}
+
+void SQLiteDatabase::_getStatistics(
+    const MassQueryConfig& config,
+    std::optional<ElectronicComponent::Type> type,
+    size_t& totalPages,
+    size_t& totalItems
+) {
+    int ret;
+
+    MassQueryConfig cfgForStats = config;
+    cfgForStats.statisticsOnly = true;
+    cfgForStats.pagination.reset();
+
+    sqlite3_stmt* accessor = _getMassQueryAccessor(cfgForStats, type);
+
+    sqlite3_reset(accessor);
+
+    _applyMassQueryBindings(accessor, cfgForStats);
+
+    ret = sqlite3_step(accessor);
+
+    _checkResultCode(ret, "Unable to get number of pages");
+
+    if(ret != SQLITE_ROW) {
+        printf("[Warning]: Unable to get number of pages, but sqlite did not throw an error; unknown behavior");
+        totalPages = totalItems = 0;
+    }
+
+    totalItems = sqlite3_column_int(accessor, 0);
+
+    if(config.pagination.has_value()){
+        int itemsPerPage = config.pagination.value().itemsPerPage;
+
+        totalPages = totalItems / itemsPerPage;
+    }
+    else
+        totalPages = totalItems != 0 ? 1 : 0;
+}
+
+sqlite3_stmt* SQLiteDatabase::_getMassQueryAccessor(
+    const MassQueryConfig& config,
+    std::optional<ElectronicComponent::Type> type
+) {
+    uint64_t key = config.hash();
+    s_combineHash(key, type);
+
+    auto cachedAccessor = m_massQueryAccessorsCache.find(key);
+
+    if(cachedAccessor != m_massQueryAccessorsCache.end())
+        return cachedAccessor->second;
+
+    std::string sqlStatement = s_genSQLStatement4MassQuery(config, type);
+    sqlite3_stmt* newAccessor;
+
+    int ret = sqlite3_prepare_v2(m_db, sqlStatement.c_str(), sqlStatement.length(), &newAccessor, nullptr);
+
+    if(ret != SQLITE_OK)
+        _throwError("Failed to prepare mass query accessor SQL statement", sqlStatement.c_str());
+
+    m_massQueryAccessorsCache[key] = newAccessor;
+
+    return newAccessor;
+}
+
+sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(ElectronicComponent::Type type, int& batchSize) {
+    uint64_t batchAccessorID = static_cast<uint64_t>(type) << 32;
+
+    batchSize = s_chooseBestBatchSize(batchSize);
+
+    batchAccessorID |= batchSize;
+
+    auto cachedAccessor = m_batchAccessorsCache.find(batchAccessorID);
+
+    if(cachedAccessor != m_batchAccessorsCache.end())
+        return cachedAccessor->second;
+
+    std::string sqlStatement = s_genSQLStatement4Batches(type, batchSize);
+    sqlite3_stmt* newAccessor;
+
+    int ret = sqlite3_prepare_v2(m_db, sqlStatement.c_str(), sqlStatement.length(), &newAccessor, nullptr);
+
+    if(ret != SQLITE_OK)
+        _throwError("Failed to prepare batch query accessor SQL statement", sqlStatement.c_str());
+
+    m_batchAccessorsCache[batchAccessorID] = newAccessor;
+
+    return newAccessor;
+}
+
+void SQLiteDatabase::_applyMassQueryBindings(sqlite3_stmt* accessor, const MassQueryConfig& config, size_t pageIndex) {
+    sqlite3_clear_bindings(accessor);
+
+    int paramIndex = 1;
+
+    if(config.pagination.has_value()) {
+        size_t itemsPerPage = config.pagination.value().itemsPerPage;
+        sqlite3_bind_int(accessor, paramIndex++, itemsPerPage);
+        sqlite3_bind_int(accessor, paramIndex++, pageIndex * itemsPerPage);
+    }
+}
+
+void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
+    std::vector<ComponentBase>& bases,
+    BatchesCount amounts,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    int headIndex = 0;
+    int offset = 0;
+
+    if(bases.size() == 0)
+        return;
+
+    while(amounts.numResistors) {
+        int batchSize = amounts.numResistors;
+        _getResistorsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numResistors <= batchSize)
+            break;
+
+        amounts.numResistors -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numCapacitors) {
+        int batchSize = amounts.numCapacitors;
+        _getCapacitorsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numCapacitors <= batchSize)
+            break;
+
+        amounts.numCapacitors -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numInductors) {
+        int batchSize = amounts.numInductors;
+        _getInductorsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numInductors <= batchSize)
+            break;
+
+        amounts.numInductors -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numDiodes) {
+        int batchSize = amounts.numDiodes;
+        _getDiodesInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numDiodes <= batchSize)
+            break;
+
+        amounts.numDiodes -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numBJTs) {
+        int batchSize = amounts.numBJTs;
+        _getBJTransistorsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numBJTs <= batchSize)
+            break;
+
+        amounts.numBJTs -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numFETs) {
+        int batchSize = amounts.numFETs;
+        _getFETransistorsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numFETs <= batchSize)
+            break;
+
+        amounts.numFETs -= batchSize;
+    }
+
+    offset = 0;
+    while(amounts.numChips) {
+        int batchSize = amounts.numChips;
+        _getIntegratedCircuitsInBatches(bases, batchSize, headIndex, offset, items);
+
+        if(amounts.numChips <= batchSize)
+            break;
+
+        amounts.numChips -= batchSize;
+    }
+}
+
+void SQLiteDatabase::_bindIdsForBatching(
+    ElectronicComponent::Type type,
+    sqlite3_stmt* accessor,
+    std::vector<ComponentBase>& bases,
+    int batchSize,
+    int& headIndex,
+    int& offset
+) {
+    sqlite3_clear_bindings(accessor);
+    m_baseIndexQueue.clear();
+
+    size_t i = headIndex + offset;
+    size_t prevI = headIndex + offset;
+    size_t paramIndex = 0;
+    do {
+        if(paramIndex >= batchSize)
+            break;
+
+        if(bases[i].type != type)
+            goto skip;
+
+        sqlite3_bind_int64(accessor, paramIndex + 1, bases[i].ID);
+        m_baseIndexQueue.emplace_back(i);
+
+        if(i == prevI) { // Flag first element in linked-list as removed
+            offset -= bases[i].next - headIndex;
+            headIndex = bases[i].next;
+        } else // Flag any other element as removed
+            bases[prevI].next = bases[i].next;
+skip:
+        prevI = i;
+        i = bases[i].next;
+        paramIndex++;
+        offset++;
+    } while(i != 0);
+}
+
+void SQLiteDatabase::_getResistorsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Resistor, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::Resistor, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get resistors from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        double resistance = sqlite3_column_double(accessor, 2);
+        double toleranceBand = sqlite3_column_double(accessor, 3);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<Resistor>(bases[baseIndex].config, resistance, toleranceBand));
+    }
+}
+
+void SQLiteDatabase::_getCapacitorsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Capacitor, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::Capacitor, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get capacitors from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        Capacitor::Type type = static_cast<Capacitor::Type>(
+            sqlite3_column_int(accessor, 2)
+        );
+        double capacitance = sqlite3_column_double(accessor, 3);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<Capacitor>(bases[baseIndex].config, type, capacitance));
+    }
+}
+
+void SQLiteDatabase::_getInductorsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Inductor, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::Inductor, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get inductors from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        double inductance = sqlite3_column_double(accessor, 2);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<Inductor>(bases[baseIndex].config, inductance));
+    }
+}
+
+void SQLiteDatabase::_getDiodesInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Diode, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::Diode, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get diodes from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        Diode::Type type = static_cast<Diode::Type>(
+            sqlite3_column_int(accessor, 2)
+        );
+        double forwardVoltage = sqlite3_column_double(accessor, 3);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<Diode>(bases[baseIndex].config, forwardVoltage, type));
+    }
+}
+
+void SQLiteDatabase::_getBJTransistorsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::BJTransistor, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::BJTransistor, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get BJTransistors from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        double gain = sqlite3_column_double(accessor, 2);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<BJTransistor>(bases[baseIndex].config, gain));
+    }
+}
+
+void SQLiteDatabase::_getFETransistorsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::FETransistor, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::FETransistor, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get FETransistors from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        double thresholdVoltage = sqlite3_column_double(accessor, 2);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<FETransistor>(bases[baseIndex].config, thresholdVoltage));
+    }
+}
+
+void SQLiteDatabase::_getIntegratedCircuitsInBatches(
+    std::vector<ComponentBase>& bases,
+    int& batchSize,
+    int& headIndex,
+    int& offset,
+    std::vector<std::unique_ptr<ElectronicComponent>>& items
+) {
+    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::IntegratedCircuit, batchSize);
+
+    sqlite3_reset(accessor);
+
+    _bindIdsForBatching(ElectronicComponent::Type::IntegratedCircuit, accessor, bases, batchSize, headIndex, offset);
+
+    for(size_t i = 0;;i++) {
+        int ret = sqlite3_step(accessor);
+
+        _checkResultCode(ret, "Failed to get IntegratedCircuits from a batch");
+
+        if(ret != SQLITE_ROW)
+            break;
+
+        size_t pinCount = sqlite3_column_int(accessor, 2);
+        double width = sqlite3_column_double(accessor, 3);
+        double height = sqlite3_column_double(accessor, 4);
+        double length = sqlite3_column_double(accessor, 5);
+
+        size_t baseIndex = m_baseIndexQueue[i];
+        items.push_back(
+            std::make_unique<IntegratedCircuit>(bases[baseIndex].config, pinCount, width, height, length));
+    }
+}
+
+static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type> type) {
+    std::string sql;
+    sql.reserve(256);
+
+    if(config.statisticsOnly)
+        sql = "SELECT COUNT(*) FROM ElectronicComponents ";
+    else
+        sql = "SELECT * FROM ElectronicComponents ";
+
+    if(type.has_value()) {
+        sql += "WHERE Type = ";
+        sql += std::to_string(static_cast<int>(type.value()));
+        sql += ' ';
+    }
+
+    if(config.pagination.has_value())
+        sql += "LIMIT ? OFFSET ? ";
+
+    return sql;
+}
+
+static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int batchSize) {
+    std::string sql;
+    sql.reserve(256);
+
+    sql = "SELECT * FROM ";
+
+    switch(type){
+    case ElectronicComponent::Type::Resistor:
+        sql += "Resistors ";
+        break;
+    case ElectronicComponent::Type::Capacitor:
+        sql += "Capacitors ";
+        break;
+    case ElectronicComponent::Type::Inductor:
+        sql += "Inductors ";
+        break;
+    case ElectronicComponent::Type::Diode:
+        sql += "Diodes ";
+        break;
+    case ElectronicComponent::Type::BJTransistor:
+        sql += "BJTransistors ";
+        break;
+    case ElectronicComponent::Type::FETransistor:
+        sql += "FETransistors ";
+        break;
+    case ElectronicComponent::Type::IntegratedCircuit:
+        sql += "IntegratedCircuits ";
+    }
+
+    sql += "WHERE ComponentID IN (";
+
+    for(int i = 1; i < batchSize; i++)
+        sql += "?, ";
+
+    sql += "?)";
+
+    return sql;
+}
+
+static int s_chooseBestBatchSize(int sizeHint) {
+    if(sizeHint < MIN_BATCH_SIZE)
+        return MIN_BATCH_SIZE;
+
+    if(MAX_BATCH_SIZE < sizeHint)
+        return MAX_BATCH_SIZE;
+
+    return s_floorPowerOf2(sizeHint);
+}
+
+static int s_floorPowerOf2(int x) {
+    if (x == 0) return 0;
+
+    if ((x & (x - 1)) == 0) return x;
+
+    int v = x;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    return (v >> 1) + 1;
 }
