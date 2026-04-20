@@ -19,6 +19,7 @@ set(APP_SOURCES
     src/Application.cpp
     src/electronics_manager.cpp
 
+    src/database/MassQueryConfig.cpp
     src/database/SQLiteDatabase.cpp
 )
 

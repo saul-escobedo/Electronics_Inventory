@@ -1,10 +1,13 @@
 #pragma once
 
 #include "Database.hpp"
+#include "database/MassQueryConfig.hpp"
 #include "electrical/BJTransistor.hpp"
 #include "electrical/ElectronicComponent.hpp"
 #include "electrical/IntegratedCircuit.hpp"
 #include "sqlite3.h"
+
+#include <unordered_map>
 
 namespace ecim {
     struct SQLAccessors {
@@ -83,15 +86,21 @@ namespace ecim {
 
         std::unique_ptr<Transaction> startTransaction() override;
     private:
+        struct ComponentBase;
+        struct BatchesCount;
+
         sqlite3* m_db;
         std::string m_dbFilename;
 
         SQLAccessors m_accessors;
+        std::unordered_map<uint64_t, sqlite3_stmt*> m_massQueryAccessorsCache;
+        std::unordered_map<uint64_t, sqlite3_stmt*> m_batchAccessorsCache;
+        std::vector<size_t> m_baseIndexQueue;
 
         // Helper function to throw generic database errors
         //
         // message: Brief description of the error
-        // sqlCode: SQL to print if the error has something to do with it
+        // sqlCode: SQL to print if it has something to do with the error
         void _throwError(const char* message, const char* sqlCode = nullptr);
 
         // Helper function to check the status of a sqlite statement while
@@ -109,7 +118,8 @@ namespace ecim {
 
         // Add specific component properties depending on its type
         void _addAdditionalComponentProperties(
-            ComponentID ID, const ElectronicComponent& newComponent);
+            ComponentID ID, const ElectronicComponent& newComponent
+        );
 
         // Get specific component properties depending on its type
         std::unique_ptr<ElectronicComponent> _getAdditionalComponentProperties(
@@ -153,5 +163,85 @@ namespace ecim {
         void _editBJTransistor(ComponentID ID, const BJTransistor& updatedTransistor);
         void _editFETransistor(ComponentID ID, const FETransistor& updatedTransistor);
         void _editIntegratedCircuit(ComponentID ID, const IntegratedCircuit& updatedChip);
+
+        // Mass Query Accessor helpers
+        MassQueryResult _getAllComponents(
+            const MassQueryConfig& config,
+            std::optional<ElectronicComponent::Type> type = std::optional<ElectronicComponent::Type>()
+        );
+        void _getStatistics(
+            const MassQueryConfig& config,
+            std::optional<ElectronicComponent::Type> type,
+            size_t& totalPages,
+            size_t& totalItems
+        );
+        sqlite3_stmt* _getMassQueryAccessor(
+            const MassQueryConfig& config,
+            std::optional<ElectronicComponent::Type> type
+        );
+        sqlite3_stmt* _getBatchAccessor(ElectronicComponent::Type type, int& batchSize);
+        void _applyMassQueryBindings(sqlite3_stmt* accessor, const MassQueryConfig& config, size_t pageIndex = 0);
+        void _getAdditionalComponentPropertiesInBatches(
+            std::vector<ComponentBase>& bases,
+            BatchesCount amounts,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _bindIdsForBatching(
+            ElectronicComponent::Type type,
+            sqlite3_stmt* accessor,
+            std::vector<ComponentBase>& bases,
+            int batchSize,
+            int& headIndex,
+            int& offset
+        );
+        void _getResistorsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getCapacitorsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getInductorsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getDiodesInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getBJTransistorsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getFETransistorsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
+        void _getIntegratedCircuitsInBatches(
+            std::vector<ComponentBase>& bases,
+            int& batchSize,
+            int& headIndex,
+            int& offset,
+            std::vector<std::unique_ptr<ElectronicComponent>>& items
+        );
     };
 }
