@@ -72,6 +72,24 @@ bool Filter::operator!=(const Filter& other) const {
     return !(*this == other);
 }
 
+bool Filter::isValid() const {
+    if((operation == Operation::Contains ||
+        operation == Operation::StartsWith ||
+        operation == Operation::EndsWith) && value.index() != 0) {
+        printf("[Warning]: Filter is using a string operation but a string is not assigned\n");
+        return false;
+    }
+
+    if((operation == Operation::InRange ||
+        operation == Operation::NotInRange) &&
+        (value.index() != 3 && value.index() != 4)) {
+        printf("[Warning]: Filter is using an 'InRange' operation but the bounds are not assigned\n");
+        return false;
+    }
+
+    return true;
+}
+
 std::size_t Filter::hash() const {
     std::size_t hash = 0;
 

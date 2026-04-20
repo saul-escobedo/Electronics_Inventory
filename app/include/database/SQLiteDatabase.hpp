@@ -180,7 +180,12 @@ namespace ecim {
             std::optional<ElectronicComponent::Type> type
         );
         sqlite3_stmt* _getBatchAccessor(ElectronicComponent::Type type, int& batchSize);
-        void _applyMassQueryBindings(sqlite3_stmt* accessor, const MassQueryConfig& config, size_t pageIndex = 0);
+        void _applyMassQueryBindings(
+            sqlite3_stmt* accessor,
+            const MassQueryConfig& config,
+            size_t pageIndex = 0,
+            std::optional<ElectronicComponent::Type> type = std::optional<ElectronicComponent::Type>()
+        );
         void _getAdditionalComponentPropertiesInBatches(
             std::vector<ComponentBase>& bases,
             BatchesCount amounts,

@@ -35,10 +35,11 @@ namespace ecim {
             GreaterThan,
             LessThanOrEqual,
             GreaterThanOrEqual,
-            Contains,
-            StartsWith,
-            EndsWith,
-            InRange
+            Contains, // Strings
+            StartsWith, // Strings
+            EndsWith, // Strings
+            InRange,
+            NotInRange
         };
 
         ComponentProperty property;
@@ -53,6 +54,7 @@ namespace ecim {
 
         bool operator==(const Filter& other) const;
         bool operator!=(const Filter& other) const;
+        bool isValid() const;
         std::size_t hash() const;
     };
 
