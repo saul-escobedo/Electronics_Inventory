@@ -46,13 +46,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->Search_Bar, &QLineEdit::returnPressed,
             this, &MainWindow::on_search_enter_pressed);
 
-    //Init the table in Dashboard.
+    //Initialize the table in Dashboard.
     ui->Inventory_Table->setColumnCount(3);
     QStringList headers;
     headers << "Item Name" << "Parts in Stock" << "Part Number";
     ui->Inventory_Table->setHorizontalHeaderLabels(headers);
     ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+    //This lets the table be sorted
+    ui->Inventory_Table->setSortingEnabled(true);
 
     //Load items into the table and update the total parts label.
     QVector<Item> items = dbManager.getAllItems();
@@ -88,6 +91,7 @@ MainWindow::MainWindow(QWidget *parent)
             &QTableWidget::cellDoubleClicked,
             this,
             &MainWindow::open_item_view);
+
 
     connect(ui->Edit_Item, &QPushButton::clicked, this, [this] ()
     {
@@ -209,8 +213,11 @@ void MainWindow::add_item(const QString &name, int quantity, int part_num, const
     ui->Inventory_Table->insertRow(row);
 
     QTableWidgetItem *name_item = new QTableWidgetItem(name);
-    QTableWidgetItem *quantity_item = new QTableWidgetItem(QString::number(quantity));
-    QTableWidgetItem *part_item = new QTableWidgetItem(QString::number(part_num));
+    // QTableWidgetItem *quantity_item = new QTableWidgetItem(QString::number(quantity));
+    QTableWidgetItem *quantity_item = new QTableWidgetItem();
+    quantity_item->setData(Qt::DisplayRole, quantity);
+    QTableWidgetItem *part_item = new QTableWidgetItem();
+    part_item->setData(Qt::DisplayRole, part_num);
 
     //Store hidden data, image path
     name_item->setData(Qt::UserRole, image_path);
