@@ -6,6 +6,7 @@
 #include <QCoreApplication>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QFile>
 
 
 Database::Database()
@@ -136,3 +137,66 @@ void Database::reopenDatabase()
         qDebug() << "DB reopened at: " << fullPath;
     }
 }
+
+QString Database::getDatabasePath() const
+{
+    return db.databaseName();
+}
+
+bool Database::moveDatabase(const QString &newFolder)
+{
+    QString oldPath = db.databaseName();
+    QString newPath = newFolder + "/inventory.db";
+
+    if(oldPath == newPath)
+        return true;
+
+    //Ensure folder exists
+    QDir().mkpath(newFolder);
+
+    //Close db before copying
+    if(db.isOpen())
+        db.close();
+
+    //If destination already exists, remove it
+    if(QFile::exists(newPath))
+    {
+        if(!QFile::remove(newPath))
+        {
+            qDebug() << "Failed to remove existing DB at new path.";
+            return false;
+        }
+    }
+
+    //Copy file
+    if(!QFile::copy(oldPath, newPath))
+    {
+        qDebug() << "Failed to copy DB file";
+    }
+
+    //Reopen with new path
+    db.setDatabaseName(newPath);
+
+    if(!db.open())
+    {
+        qDebug() << "Failed to open DB at new path.";
+        return false;
+    }
+
+    qDebug() << "Database moved to: " << newPath;
+    return true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

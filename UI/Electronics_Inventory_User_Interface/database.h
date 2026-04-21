@@ -29,6 +29,10 @@ public:
     bool deleteItem(int partNumber);
     void reopenDatabase();      //Used to restart connection so sqlite creates a new
                                 //db file in inputed default path.
+    //Helper functions to be able to copy db if path changes.
+    QString getDatabasePath() const;
+    bool moveDatabase(const QString &newFolder);
+
 private:
     QSqlDatabase db;
 };

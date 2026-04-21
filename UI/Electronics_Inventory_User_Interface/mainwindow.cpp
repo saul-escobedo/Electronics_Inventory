@@ -8,6 +8,7 @@
 #include <QSqlQuery>
 #include <QSqlError>
 #include <QDebug>
+#include <QSettings>
 #include "edit_item_dialog.h"
 #include "settings.h"
 
@@ -141,18 +142,28 @@ MainWindow::MainWindow(QWidget *parent)
         connect(&dialog, &Settings::settingsChanged,
                 this, [this]()
                 {
-                    dbManager.reopenDatabase();
+            QSettings settings("MyCompany", "InventoryApp");
+            QString newFolder = settings.value("dbPath").toString();
 
-                    ui->Inventory_Table->setRowCount(0);
+            //MoVe database
+            if(!dbManager.moveDatabase(newFolder))
+            {
+                QMessageBox::warning(this, "Error", "Failed to move databse.");
+                return;
+            }
 
-                    QVector<Item> items = dbManager.getAllItems();
-                    for(const Item &item : items)
-                    {
-                        add_item(item.name, item.quantity, item.partNumber, item.imagePath);
-                    }
+                //dbManager.reopenDatabase();
 
-                    update_total_parts_label();
-                });
+                ui->Inventory_Table->setRowCount(0);
+
+                QVector<Item> items = dbManager.getAllItems();
+                for(const Item &item : items)
+                {
+                    add_item(item.name, item.quantity, item.partNumber, item.imagePath);
+                }
+
+                update_total_parts_label();
+            });
 
         dialog.exec();
     });
