@@ -101,6 +101,54 @@
     <string>Save</string>
    </property>
   </widget>
+  <widget class="QCheckBox" name="autoBackupCheckBox">
+   <property name="geometry">
+    <rect>
+     <x>330</x>
+     <y>30</y>
+     <width>171</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Enable Auto Backup</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="backupFrequency">
+   <property name="geometry">
+    <rect>
+     <x>380</x>
+     <y>60</y>
+     <width>86</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Never</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>On Startup</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Daily</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Weekly</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Monthly</string>
+    </property>
+   </item>
+  </widget>
  </widget>
  <resources/>
  <connections>

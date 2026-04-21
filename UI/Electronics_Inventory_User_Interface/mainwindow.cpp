@@ -9,6 +9,9 @@
 #include <QSqlError>
 #include <QDebug>
 #include <QSettings>
+#include <QDir>
+#include <QFile>
+#include <QDateTime>
 #include "edit_item_dialog.h"
 #include "settings.h"
 
@@ -155,9 +158,6 @@ MainWindow::MainWindow(QWidget *parent)
                 QMessageBox::warning(this, "Error", "Failed to move databse.");
                 return;
             }
-
-                //dbManager.reopenDatabase();
-
                 ui->Inventory_Table->setRowCount(0);
 
                 QVector<Item> items = dbManager.getAllItems();
@@ -168,9 +168,18 @@ MainWindow::MainWindow(QWidget *parent)
 
                 update_total_parts_label();
             });
+        //Not sure about here.
+        startBackupTimer();
 
         dialog.exec();
     });
+    //Creating timer object.
+    //Every time timer "times out" calls performBackup()
+    backupTimer = new QTimer(this);
+    connect(backupTimer, &QTimer::timeout,
+            this, &MainWindow::performBackup);
+    startBackupTimer();
+
 }
 
 //Updates the number of current stock.
@@ -244,6 +253,65 @@ void MainWindow::open_item_view(int row, int column)
     View_Item_Dialog dialog(this);
     dialog.Set_Item_Data(name, quantity, part_number, image_path);
     dialog.exec();
+}
+
+void MainWindow::startBackupTimer()
+{
+    QSettings settings("MyCompany", "InventoryApp");
+
+    QString freq = settings.value("backupFrequency", "Never").toString();
+    backupTimer->stop();
+
+    if(freq == "Never")
+    {
+        qDebug() << "Aut-backup disabled.";
+        return;
+    }
+
+    if(freq == "On Startup")
+    {
+        performBackup(); // run once
+        return;
+    }
+
+    int intervalMs = 0;
+
+    if(freq == "Daily")
+        intervalMs = 24 * 60 * 60 * 1000;
+
+    else if(freq == "Weekly")
+        intervalMs = 7 * 24 * 60 * 60 * 1000;
+
+    else if(freq == "Monthly")
+        intervalMs = 30 * 24 * 60 * 60 * 1000;
+
+    if(intervalMs > 0)
+    {
+        backupTimer->start(intervalMs);
+        qDebug() << "Backup timer started:" << freq;
+    }
+}
+
+void MainWindow::performBackup()
+{
+    QString dbPath = dbManager.getDatabasePath();
+
+    QString backupFolder = QDir::homePath() + "/InventoryBackups";
+    QDir().mkpath(backupFolder);
+
+    QString timestamp = QDateTime::currentDateTime()
+                            .toString("yyyy-MM-dd_hh-mm-ss");
+
+    QString backupPath = backupFolder + "/backup_" + timestamp + ".db";
+
+    if(QFile::copy(dbPath, backupPath))
+    {
+        qDebug() << "Backup created:" << backupPath;
+    }
+    else
+    {
+        qDebug() << "Backup failed";
+    }
 }
 
 MainWindow::~MainWindow()

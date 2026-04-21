@@ -30,6 +30,12 @@ void Settings::loadSettings()
 {
     QSettings settings("MyCompany", "InventoryApp");
 
+    QString freq = settings.value("backupFrequency", "Never").toString();
+
+    int index = ui->backupFrequency->findText(freq);
+    if(index != -1)
+        ui->backupFrequency->setCurrentIndex(index);
+
     ui->usernameLineEdit->setText(settings.value("username", "").toString());
     ui->dbPathLineEdit->setText(settings.value("dbPath", "").toString());
 }
@@ -37,6 +43,9 @@ void Settings::loadSettings()
 void Settings::saveSettings()
 {
     QSettings settings("MyCompany", "InventoryApp");
+    //Save settings for the backup frequency combo box.
+    settings.setValue("backupFrequency",
+                      ui->backupFrequency->currentText());
 
     settings.setValue("username", ui->usernameLineEdit->text());
     settings.setValue("dbPath", ui->dbPathLineEdit->text());

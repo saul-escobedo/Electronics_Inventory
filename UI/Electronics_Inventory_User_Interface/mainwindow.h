@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QTimer>   //Used to be able to use time for the automatic backups.
 #include "database.h"
 
 QT_BEGIN_NAMESPACE
@@ -21,6 +22,10 @@ public:
 private:
     Ui::MainWindow *ui;
     Database dbManager;
+
+    QTimer *backupTimer;
+    void startBackupTimer();
+    void performBackup();
 
     //All functions for Dashboard are init here.
 
