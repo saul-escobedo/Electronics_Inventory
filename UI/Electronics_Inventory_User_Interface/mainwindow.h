@@ -23,6 +23,7 @@ private:
     Ui::MainWindow *ui;
     Database dbManager;
 
+    //Functions for the setting to set backup frequency.
     QTimer *backupTimer;
     void startBackupTimer();
     void performBackup();
