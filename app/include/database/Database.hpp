@@ -84,10 +84,11 @@ namespace ecim {
         /// @throws DatabaseException if database cannot initiate a
         /// transaction.
         ///
-        /// @return the handle of the new transaction, do not discard it!
+        /// @return the handle of the new transaction. Discarding it would be
+        /// moot, so don't discard it!
         ///
         /// @note call `tx->commit()` if changes are meant to be saved. When
         /// the instance is destroyed, changes are reverted.
-        virtual [[nodiscard]] std::unique_ptr<Transaction> startTransaction() = 0;
+        [[nodiscard]] virtual std::unique_ptr<Transaction> startTransaction() = 0;
     };
 }
