@@ -1,4 +1,5 @@
 #include "database/MassQueryConfig.hpp"
+#include "database/MassQueryResult.hpp"
 #include "database/exceptions/DatabaseException.hpp"
 #include "database/exceptions/Exceptions.hpp"
 #include "database/SQLiteDatabase.hpp"
@@ -643,7 +644,7 @@ TEST(SQLiteBackend, Sorting) {
 
     // Add a shuffled set of resistors with different unique resistances
     values.resize(numResistors, -1);
-    std::uniform_int_distribution<> r(0, numResistors);
+    std::uniform_int_distribution<> r(0, numResistors - 1);
     for(int value = 0; value < numResistors; value++) {
         int i = r(randomizer);
 
@@ -657,7 +658,7 @@ TEST(SQLiteBackend, Sorting) {
     // Add a shuffled set of capacitors with different unique capacitances
     values.clear();
     values.resize(numCapacitors, -1);
-    r = std::uniform_int_distribution<>(0, numCapacitors);
+    r = std::uniform_int_distribution<>(0, numCapacitors - 1);
     for(int value = 0; value < numCapacitors; value++) {
         int i = r(randomizer);
 
@@ -804,7 +805,7 @@ TEST(SQLiteBackend, Filtering) {
     queryConfig.filters = {
         std::vector<FilterNode>{
             orNode,
-            Filter{static_cast<ComponentProperty>(ElectronicComponent::Property::Name), Filter::Operation::Equals, recognizableName }
+            Filter{ static_cast<ComponentProperty>(ElectronicComponent::Property::Name), Filter::Operation::Equals, recognizableName }
         },
         FilterNode::Type::And
     };
@@ -812,4 +813,166 @@ TEST(SQLiteBackend, Filtering) {
     EXPECT_EQ(result.items.size(), 1);
 
     db->shutdown();
+}
+
+TEST(SQLiteBackend, Transactions) {
+    Database* db;
+    MassQueryResult result;
+
+    const int numResistors = 10;
+
+    // Test if changes are rolled back after db is restarted while transaction
+    // wasn't commited
+    {
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        auto t = db->startTransaction();
+
+        for (int i = 0; i < numResistors; i++)
+            db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+        db->shutdown();
+    } { // After restart
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        result = db->getAllComponents();
+        EXPECT_EQ(result.items.size(), 0);
+
+        db->shutdown();
+    }
+
+    removeFile("test_db.sqlite");
+
+    // See if changes are rolled back when explicitly told to do so
+    {
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        auto t = db->startTransaction();
+
+        for (int i = 0; i < numResistors; i++)
+            db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+        result = db->getAllComponents();
+        EXPECT_EQ(result.items.size(), numResistors);
+
+        t->rollback();
+
+        result = db->getAllComponents();
+        EXPECT_EQ(result.items.size(), 0);
+
+        db->shutdown();
+    }
+
+    removeFile("test_db.sqlite");
+
+    // See if changes are rolled back implicitly when transaction handle goes
+    // out of scope
+    {
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        {
+            auto t = db->startTransaction();
+
+            for (int i = 0; i < numResistors; i++)
+                db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+            result = db->getAllComponents();
+            EXPECT_EQ(result.items.size(), numResistors);
+        }
+
+        result = db->getAllComponents();
+        EXPECT_EQ(result.items.size(), 0);
+
+        db->shutdown();
+    }
+
+    removeFile("test_db.sqlite");
+
+    // See if changes are saved when a transaction is committed
+    {
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        auto t = db->startTransaction();
+
+        for (int i = 0; i < numResistors; i++)
+            db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+        t->commit();
+
+        db->shutdown();
+    } { // After restart
+        SQLiteDatabase sqlite("test_db.sqlite");
+        db = &sqlite;
+
+        db->initialize();
+
+        result = db->getAllComponents();
+        EXPECT_EQ(result.items.size(), 10);
+
+        db->shutdown();
+    }
+
+    removeFile("test_db.sqlite");
+
+    {
+        SQLiteDatabase sqlite(":memory:");
+        db = &sqlite;
+
+        db->initialize();
+
+        auto t = db->startTransaction();
+
+        for (int i = 0; i < numResistors; i++)
+            db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+        t->commit();
+
+        // Should throw error if a transaction tries to rollback after it was
+        // committed
+        EXPECT_THROW(t->rollback(), DatabaseException);
+
+        t = db->startTransaction();
+
+        db->shutdown();
+
+        // Should throw error if transaction tries to commit after db shuts
+        // down
+        EXPECT_THROW(t->commit(), DatabaseException);
+    }
+
+    {
+        SQLiteDatabase sqlite(":memory:");
+        db = &sqlite;
+
+        db->initialize();
+
+        auto t = db->startTransaction();
+
+        for (int i = 0; i < numResistors; i++)
+            db->addComponent(Resistor(baseConfig, i * 10.0, 0.05));
+
+        // Should throw error if a transaction is already in progress
+        EXPECT_THROW(t = db->startTransaction(), DatabaseException);
+
+        db->shutdown();
+
+        // Should throw error if transaction tries to rollback after db shuts
+        // down
+        EXPECT_THROW(t->rollback(), DatabaseException);
+    }
 }
