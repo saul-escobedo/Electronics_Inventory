@@ -77,6 +77,17 @@ struct SQLiteDatabase::BatchesCount {
     size_t numChips;
 };
 
+class SQLiteTransaction : public Transaction {
+public:
+    void commit() override {
+
+    }
+
+    void rollback() override {
+
+    }
+};
+
 template <class T>
 inline static void s_combineHash(uint64_t& s, const T& v) {
     std::hash<T> hash;
@@ -119,6 +130,8 @@ void SQLiteDatabase::initialize() {
 
         throw FailedInitializationException(DB_BACKEND_NAME, message);
     }
+
+    m_transactionStarted = false;
 
     _createSQLiteAccessors();
 }
@@ -401,6 +414,9 @@ MassQueryResult SQLiteDatabase::getAllComponentsByType(
 
 std::unique_ptr<Transaction> SQLiteDatabase::startTransaction() {
     _checkInitialization();
+
+    if(m_transactionStarted)
+        _throwError("A transaction is already active");
 
     return nullptr;
 }

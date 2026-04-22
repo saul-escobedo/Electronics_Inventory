@@ -90,6 +90,7 @@ namespace ecim {
         struct BatchesCount;
 
         sqlite3* m_db;
+        bool m_transactionStarted;
         std::string m_dbFilename;
 
         SQLAccessors m_accessors;
