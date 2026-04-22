@@ -179,7 +179,11 @@ namespace ecim {
             const MassQueryConfig& config,
             std::optional<ElectronicComponent::Type> type
         );
-        sqlite3_stmt* _getBatchAccessor(ElectronicComponent::Type type, int& batchSize);
+        sqlite3_stmt* _getBatchAccessor(
+            const MassQueryConfig& config,
+            ElectronicComponent::Type type,
+            int& batchSize
+        );
         void _applyMassQueryBindings(
             sqlite3_stmt* accessor,
             const MassQueryConfig& config,
@@ -188,6 +192,7 @@ namespace ecim {
         );
         void _getAdditionalComponentPropertiesInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             BatchesCount amounts,
             std::vector<std::unique_ptr<ElectronicComponent>>& items
         );
@@ -201,6 +206,7 @@ namespace ecim {
         );
         void _getResistorsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -208,6 +214,7 @@ namespace ecim {
         );
         void _getCapacitorsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -215,6 +222,7 @@ namespace ecim {
         );
         void _getInductorsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -222,6 +230,7 @@ namespace ecim {
         );
         void _getDiodesInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -229,6 +238,7 @@ namespace ecim {
         );
         void _getBJTransistorsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -236,6 +246,7 @@ namespace ecim {
         );
         void _getFETransistorsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,
@@ -243,6 +254,7 @@ namespace ecim {
         );
         void _getIntegratedCircuitsInBatches(
             std::vector<ComponentBase>& bases,
+            const MassQueryConfig& config,
             int& batchSize,
             int& headIndex,
             int& offset,

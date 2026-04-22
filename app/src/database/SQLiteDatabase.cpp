@@ -84,7 +84,7 @@ inline static void s_combineHash(uint64_t& s, const T& v) {
 }
 
 static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type>);
-static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int batchSize);
+static std::string s_genSQLStatement4Batches(const MassQueryConfig& config, ElectronicComponent::Type type, int batchSize);
 static const char* s_componentTypeAsString(ElectronicComponent::Type);
 static std::string s_componentPropertyAsString(ComponentProperty property, std::optional<ElectronicComponent::Type>);
 static std::string s_genSQLCondition(const Filter& filter, std::optional<ElectronicComponent::Type>);
@@ -1236,7 +1236,7 @@ MassQueryResult SQLiteDatabase::_getAllComponents(
     }
 
     // Perform batch fetching if there are many items to process
-    _getAdditionalComponentPropertiesInBatches(bases, amounts, result.items);
+    _getAdditionalComponentPropertiesInBatches(bases, config, amounts, result.items);
 
     return result;
 }
@@ -1304,19 +1304,20 @@ sqlite3_stmt* SQLiteDatabase::_getMassQueryAccessor(
     return newAccessor;
 }
 
-sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(ElectronicComponent::Type type, int& batchSize) {
-    uint64_t batchAccessorID = static_cast<uint64_t>(type) << 32;
-
+sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(const MassQueryConfig& config, ElectronicComponent::Type type, int& batchSize) {
     batchSize = s_chooseBestBatchSize(batchSize);
 
-    batchAccessorID |= batchSize;
+    uint64_t key = static_cast<uint64_t>(type);
+    s_combineHash(key, batchSize);
+    s_combineHash(key, config.order);
+    s_combineHash(key, config.sortBy);
 
-    auto cachedAccessor = m_batchAccessorsCache.find(batchAccessorID);
+    auto cachedAccessor = m_batchAccessorsCache.find(key);
 
     if(cachedAccessor != m_batchAccessorsCache.end())
         return cachedAccessor->second;
 
-    std::string sqlStatement = s_genSQLStatement4Batches(type, batchSize);
+    std::string sqlStatement = s_genSQLStatement4Batches(config, type, batchSize);
     sqlite3_stmt* newAccessor;
 
     int ret = sqlite3_prepare_v2(m_db, sqlStatement.c_str(), sqlStatement.length(), &newAccessor, nullptr);
@@ -1324,7 +1325,7 @@ sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(ElectronicComponent::Type type, 
     if(ret != SQLITE_OK)
         _throwError("Failed to prepare batch query accessor SQL statement", sqlStatement.c_str());
 
-    m_batchAccessorsCache[batchAccessorID] = newAccessor;
+    m_batchAccessorsCache[key] = newAccessor;
 
     return newAccessor;
 }
@@ -1396,6 +1397,7 @@ void SQLiteDatabase::_applyMassQueryBindings(
 
 void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     BatchesCount amounts,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
@@ -1407,7 +1409,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
 
     while(amounts.numResistors) {
         int batchSize = amounts.numResistors;
-        _getResistorsInBatches(bases, batchSize, headIndex, offset, items);
+        _getResistorsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numResistors <= batchSize)
             break;
@@ -1418,7 +1420,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numCapacitors) {
         int batchSize = amounts.numCapacitors;
-        _getCapacitorsInBatches(bases, batchSize, headIndex, offset, items);
+        _getCapacitorsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numCapacitors <= batchSize)
             break;
@@ -1429,7 +1431,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numInductors) {
         int batchSize = amounts.numInductors;
-        _getInductorsInBatches(bases, batchSize, headIndex, offset, items);
+        _getInductorsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numInductors <= batchSize)
             break;
@@ -1440,7 +1442,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numDiodes) {
         int batchSize = amounts.numDiodes;
-        _getDiodesInBatches(bases, batchSize, headIndex, offset, items);
+        _getDiodesInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numDiodes <= batchSize)
             break;
@@ -1451,7 +1453,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numBJTs) {
         int batchSize = amounts.numBJTs;
-        _getBJTransistorsInBatches(bases, batchSize, headIndex, offset, items);
+        _getBJTransistorsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numBJTs <= batchSize)
             break;
@@ -1462,7 +1464,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numFETs) {
         int batchSize = amounts.numFETs;
-        _getFETransistorsInBatches(bases, batchSize, headIndex, offset, items);
+        _getFETransistorsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numFETs <= batchSize)
             break;
@@ -1473,7 +1475,7 @@ void SQLiteDatabase::_getAdditionalComponentPropertiesInBatches(
     offset = 0;
     while(amounts.numChips) {
         int batchSize = amounts.numChips;
-        _getIntegratedCircuitsInBatches(bases, batchSize, headIndex, offset, items);
+        _getIntegratedCircuitsInBatches(bases, config, batchSize, headIndex, offset, items);
 
         if(amounts.numChips <= batchSize)
             break;
@@ -1521,12 +1523,13 @@ skip:
 
 void SQLiteDatabase::_getResistorsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Resistor, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::Resistor, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1551,12 +1554,13 @@ void SQLiteDatabase::_getResistorsInBatches(
 
 void SQLiteDatabase::_getCapacitorsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Capacitor, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::Capacitor, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1583,12 +1587,13 @@ void SQLiteDatabase::_getCapacitorsInBatches(
 
 void SQLiteDatabase::_getInductorsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Inductor, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::Inductor, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1612,12 +1617,13 @@ void SQLiteDatabase::_getInductorsInBatches(
 
 void SQLiteDatabase::_getDiodesInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::Diode, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::Diode, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1644,12 +1650,13 @@ void SQLiteDatabase::_getDiodesInBatches(
 
 void SQLiteDatabase::_getBJTransistorsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::BJTransistor, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::BJTransistor, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1673,12 +1680,13 @@ void SQLiteDatabase::_getBJTransistorsInBatches(
 
 void SQLiteDatabase::_getFETransistorsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::FETransistor, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::FETransistor, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1702,12 +1710,13 @@ void SQLiteDatabase::_getFETransistorsInBatches(
 
 void SQLiteDatabase::_getIntegratedCircuitsInBatches(
     std::vector<ComponentBase>& bases,
+    const MassQueryConfig& config,
     int& batchSize,
     int& headIndex,
     int& offset,
     std::vector<std::unique_ptr<ElectronicComponent>>& items
 ) {
-    sqlite3_stmt* accessor = _getBatchAccessor(ElectronicComponent::Type::IntegratedCircuit, batchSize);
+    sqlite3_stmt* accessor = _getBatchAccessor(config, ElectronicComponent::Type::IntegratedCircuit, batchSize);
 
     sqlite3_reset(accessor);
 
@@ -1775,13 +1784,15 @@ static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, st
         sql += ' ';
     }
 
-    if(config.order.has_value() || config.sortBy.has_value())
+    if((config.order.has_value() || config.sortBy.has_value()) && !config.statisticsOnly)
         sql += "ORDER BY ";
+    else
+        goto skipOrdering;
 
     if(config.sortBy.has_value()) {
         sql += s_componentPropertyAsString(config.sortBy.value(), type);
         sql += ' ';
-    } else if(config.order.has_value())
+    } else
         sql += "ElectronicComponents.ComponentID ";
 
     if(config.order.has_value()) {
@@ -1797,15 +1808,16 @@ static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, st
         }
     }
 
+skipOrdering:
     if(config.pagination.has_value())
         sql += "LIMIT ? OFFSET ?";
 
     return sql;
 }
 
-static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int batchSize) {
+static std::string s_genSQLStatement4Batches(const MassQueryConfig& config, ElectronicComponent::Type type, int batchSize) {
     std::string sql;
-    sql.reserve(256);
+    sql.reserve(78 + batchSize * 2);
 
     sql = "SELECT * FROM ";
     sql += s_componentTypeAsString(type);
@@ -1815,6 +1827,30 @@ static std::string s_genSQLStatement4Batches(ElectronicComponent::Type type, int
         sql += "?, ";
 
     sql += "?)";
+
+    if((config.order.has_value() || config.sortBy.has_value()) && !config.statisticsOnly)
+        sql += "ORDER BY ";
+    else
+        return sql;
+
+    if(config.sortBy.has_value()) {
+        sql += s_componentPropertyAsString(config.sortBy.value(), type);
+        sql += ' ';
+    } else
+        sql += "ElectronicComponents.ComponentID ";
+
+    if(config.order.has_value()) {
+        switch(config.order.value()) {
+        case SortOrder::Acending:
+            sql += "ASC ";
+            break;
+        case SortOrder::Decending:
+            sql += "DESC ";
+            break;
+        default:
+            break;
+        }
+    }
 
     return sql;
 }

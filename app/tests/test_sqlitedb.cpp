@@ -629,3 +629,72 @@ TEST(SQLiteBackend, Pagination) {
 
     db->shutdown();
 }
+
+TEST(SQLiteBackend, Sorting) {
+    SQLiteDatabase sqlite(":memory:");
+    Database* db = &sqlite;
+
+    db->initialize();
+
+    const int numResistors = 65;
+    const int numCapacitors = 55;
+
+    std::vector<int> values;
+    std::minstd_rand randomizer;
+
+    // Add a shuffled set of resistors with different unique resistances
+    values.resize(numResistors, -1);
+    std::uniform_int_distribution<> r(0, numResistors);
+    for(int value = 0; value < numResistors; value++) {
+        int i = r(randomizer);
+
+        while(values[i] != -1)
+            i = ++i % values.size();
+
+        values[i] = value;
+        db->addComponent(Resistor(baseConfig, value, 0.05));
+    }
+
+    // Add a shuffled set of capacitors with different unique capacitances
+    values.clear();
+    values.resize(numCapacitors, -1);
+    r = std::uniform_int_distribution<>(0, numCapacitors);
+    for(int value = 0; value < numCapacitors; value++) {
+        int i = r(randomizer);
+
+        while(values[i] != -1)
+            i = ++i % values.size();
+
+        values[i] = value;
+        db->addComponent(Capacitor(baseConfig, Capacitor::Type::Ceramic, value));
+    }
+
+    MassQueryResult result;
+    EXPECT_NO_THROW(result = db->getAllComponentsByType(ElectronicComponent::Type::Resistor, {
+        .order = SortOrder::Acending,
+        .sortBy = static_cast<ComponentProperty>(Resistor::Property::Resistance)
+    }));
+
+    // Check if the resistors are sorted in acending order
+    int value = 0;
+    for(auto& item : result.items){
+        Resistor* r = dynamic_cast<Resistor*>(item.get());
+        EXPECT_NE(r, nullptr);
+        EXPECT_EQ(r->resistance(), value++);
+    }
+
+    EXPECT_NO_THROW(result = db->getAllComponentsByType(ElectronicComponent::Type::Capacitor, {
+        .order = SortOrder::Decending,
+        .sortBy = static_cast<ComponentProperty>(Capacitor::Property::Capacitance)
+    }));
+
+    // Check if the capacitors are sorted in decending order
+    value = numCapacitors - 1;
+    for(auto& item : result.items){
+        Capacitor* cap = dynamic_cast<Capacitor*>(item.get());
+        EXPECT_NE(cap, nullptr);
+        EXPECT_EQ(cap->capacitance(), value--);
+    }
+
+    db->shutdown();
+}
