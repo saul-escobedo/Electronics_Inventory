@@ -10,7 +10,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-#include <cassert>
 
 using namespace ecim;
 
@@ -1364,7 +1363,7 @@ void SQLiteDatabase::_applyMassQueryBindings(
             else if(filter.operation == Filter::Operation::EndsWith) { format = "%%%s"; length += 1; }
 
             char* pattern = static_cast<char*>(malloc(length + 1));
-            snprintf(pattern, length, format, str.c_str());
+            snprintf(pattern, length + 1, format, str.c_str());
 
             sqlite3_bind_text(accessor, paramIndex++, pattern, length, free);
             break;
@@ -1786,6 +1785,7 @@ static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, st
 
         sql += s_genSQLCondition(filter, type);
         sql += ' ';
+        andKeyword++;
     }
 
     if((config.order.has_value() || config.sortBy.has_value()) && !config.statisticsOnly)
@@ -1936,50 +1936,70 @@ static std::string s_componentPropertyAsString(ComponentProperty property, std::
     std::string str;
     str.reserve(64);
 
-    int propIndex = type.has_value() ?
-        static_cast<int>(property) - static_cast<int>(ElectronicComponent::Property::End) :
-        static_cast<int>(property);
+    const int basePropEnd = static_cast<int>(ElectronicComponent::Property::End);
+    int propIndex = static_cast<int>(property);
+    bool isBaseProperty = !type.has_value() || (propIndex < basePropEnd);
 
-    if(type.has_value())
+    if(!isBaseProperty) { // Property type is from a child class
+        propIndex -= basePropEnd;
         str += s_componentTypeAsString(type.value());
-    else
+    } else // Property type is from base class
         str += "ElectronicComponents";
+
+    if(propIndex < 0)
+        throw DatabaseException("The ComponentProperty (%d) for one of the filters is negative; perhaps it is misused", propIndex);
 
     str += '.';
 
-    if(!type.has_value()) {
-        assert(propIndex < COUNT_OF(BASE_PROP_MAP));
+    if(isBaseProperty) {
+        if(propIndex >= COUNT_OF(BASE_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for ElectronicComponent is not valid", propIndex);
+
         str += BASE_PROP_MAP[propIndex];
         return str;
     }
 
     switch(type.value()) {
     case ElectronicComponent::Type::Resistor:
-        assert(propIndex < COUNT_OF(RESISTOR_PROP_MAP));
+        if(propIndex >= COUNT_OF(RESISTOR_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for Resistor is not valid", propIndex);
+
         str += RESISTOR_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::Capacitor:
-        assert(propIndex < COUNT_OF(CAPACITOR_PROP_MAP));
+        if(propIndex >= COUNT_OF(CAPACITOR_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for Capacitor is not valid", propIndex);
+
         str += CAPACITOR_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::Inductor:
-        assert(propIndex < COUNT_OF(INDUCTOR_PROP_MAP));
+        if(propIndex >= COUNT_OF(INDUCTOR_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for Inductor is not valid", propIndex);
+
         str += INDUCTOR_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::Diode:
-        assert(propIndex < COUNT_OF(DIODE_PROP_MAP));
+        if(propIndex >= COUNT_OF(DIODE_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for Diode is not valid", propIndex);
+
         str += DIODE_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::BJTransistor:
-        assert(propIndex < COUNT_OF(BJT_PROP_MAP));
+        if(propIndex >= COUNT_OF(BJT_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for BJTransistor is not valid", propIndex);
+
         str += BJT_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::FETransistor:
-        assert(propIndex < COUNT_OF(FET_PROP_MAP));
+        if(propIndex >= COUNT_OF(FET_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for FETransistor is not valid", propIndex);
+
         str += FET_PROP_MAP[propIndex];
         break;
     case ElectronicComponent::Type::IntegratedCircuit:
-        assert(propIndex < COUNT_OF(CHIP_PROP_MAP));
+        if(propIndex >= COUNT_OF(CHIP_PROP_MAP))
+            throw DatabaseException("The ComponentProperty (%d) for IntegratedCircuit is not valid", propIndex);
+
         str += CHIP_PROP_MAP[propIndex];
     }
 

@@ -700,5 +700,83 @@ TEST(SQLiteBackend, Sorting) {
 }
 
 TEST(SQLiteBackend, Filtering) {
+    SQLiteDatabase sqlite(":memory:");
+    Database* db = &sqlite;
 
+    db->initialize();
+
+    const std::string recognizableName = "TestComponent";
+    const int numResistors = 10;
+    const int numCapacitors = 10;
+    const int numInductors = 10;
+
+    for (int i = 0; i < numResistors; i++) {
+        ElectronicComponent::BaseConfig config = baseConfig;
+        if (i == 5) config.name = recognizableName;
+        db->addComponent(Resistor(config, i * 10.0, 0.05));
+    }
+
+    for (int i = 0; i < numCapacitors; i++) {
+        ElectronicComponent::BaseConfig config = baseConfig;
+        if (i == 5) config.name = recognizableName;
+        db->addComponent(Capacitor(config, Capacitor::Type::Ceramic, i * 1e-6));
+    }
+
+    for (int i = 0; i < numInductors; i++) {
+        ElectronicComponent::BaseConfig config = baseConfig;
+        if (i == 5) config.name = recognizableName;
+        db->addComponent(Inductor(config, i * 1e-3));
+    }
+
+    // Test 1: Filter by recognizable name using Equals, StartsWith, and EndsWith
+    MassQueryConfig queryConfig;
+    queryConfig.filters = {{ static_cast<ComponentProperty>(ElectronicComponent::Property::Name), Filter::Operation::Equals, recognizableName }};
+    MassQueryResult result = db->getAllComponents(queryConfig);
+    EXPECT_EQ(result.items.size(), 3);
+
+    queryConfig.filters[0].operation = Filter::Operation::StartsWith;
+    queryConfig.filters[0].value = recognizableName.substr(0, 4);
+    result = db->getAllComponents(queryConfig);
+    EXPECT_EQ(result.items.size(), 3);
+
+    queryConfig.filters[0].operation = Filter::Operation::EndsWith;
+    queryConfig.filters[0].value = recognizableName.substr(recognizableName.size() - 4, 4);
+    result = db->getAllComponents(queryConfig);
+    EXPECT_EQ(result.items.size(), 3);
+
+    // Test 2: Filter capacitor by capacitance equal to a known value
+    double knownCapacitance = 5 * 1e-6;
+    queryConfig.filters = { { static_cast<ComponentProperty>(Capacitor::Property::Capacitance), Filter::Operation::Equals, knownCapacitance } };
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Capacitor, queryConfig);
+    EXPECT_EQ(result.items.size(), 1);
+
+    // Test 3: Filter inductors by InRange and NotInRange
+    std::pair<double, double> range = { 2e-3, 5e-3 };
+    queryConfig.filters = { { static_cast<ComponentProperty>(Inductor::Property::Inductance), Filter::Operation::InRange, range } };
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Inductor, queryConfig);
+    EXPECT_EQ(result.items.size(), 4);
+
+    queryConfig.filters[0].operation = Filter::Operation::NotInRange;
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Inductor, queryConfig);
+    EXPECT_EQ(result.items.size(), 6);
+
+    // Test 4: Filter resistors by LessThan and GreaterThan
+    queryConfig.filters = { { static_cast<ComponentProperty>(Resistor::Property::Resistance), Filter::Operation::LessThan, 50.0 } };
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Resistor, queryConfig);
+    EXPECT_EQ(result.items.size(), 5);
+
+    queryConfig.filters[0].operation = Filter::Operation::GreaterThan;
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Resistor, queryConfig);
+    EXPECT_EQ(result.items.size(), 4);
+
+    // Test 5: Use three filters to get capacitor
+    queryConfig.filters = {
+        { static_cast<ComponentProperty>(ElectronicComponent::Property::Name), Filter::Operation::Equals, recognizableName },
+        { static_cast<ComponentProperty>(Capacitor::Property::Capacitance), Filter::Operation::Equals, 5 * 1e-6 },
+        { static_cast<ComponentProperty>(Capacitor::Property::Type), Filter::Operation::Equals, static_cast<size_t>(Capacitor::Type::Ceramic) }
+    };
+    result = db->getAllComponentsByType(ElectronicComponent::Type::Capacitor, queryConfig);
+    EXPECT_EQ(result.items.size(), 1);
+
+    db->shutdown();
 }
