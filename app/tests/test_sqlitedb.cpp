@@ -677,7 +677,7 @@ TEST(SQLiteBackend, Sorting) {
 
     // Check if the resistors are sorted in acending order
     int value = 0;
-    for(auto& item : result.items){
+    for(auto& item : result.items) {
         Resistor* r = dynamic_cast<Resistor*>(item.get());
         EXPECT_NE(r, nullptr);
         EXPECT_EQ(r->resistance(), value++);
@@ -690,11 +690,15 @@ TEST(SQLiteBackend, Sorting) {
 
     // Check if the capacitors are sorted in decending order
     value = numCapacitors - 1;
-    for(auto& item : result.items){
+    for(auto& item : result.items) {
         Capacitor* cap = dynamic_cast<Capacitor*>(item.get());
         EXPECT_NE(cap, nullptr);
         EXPECT_EQ(cap->capacitance(), value--);
     }
 
     db->shutdown();
+}
+
+TEST(SQLiteBackend, Filtering) {
+
 }
