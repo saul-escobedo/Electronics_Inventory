@@ -1,6 +1,7 @@
 #include "database/SQLiteDatabase.hpp"
 #include "database/EmbeddedSQLCode.hpp"
 #include "database/MassQueryConfig.hpp"
+#include "database/exceptions/DatabaseException.hpp"
 #include "database/exceptions/Exceptions.hpp"
 
 #include "electrical/ElectronicComponent.hpp"
@@ -87,6 +88,8 @@ static std::string s_genSQLStatement4Batches(const MassQueryConfig& config, Elec
 static const char* s_componentTypeAsString(ElectronicComponent::Type);
 static std::string s_componentPropertyAsString(ComponentProperty property, std::optional<ElectronicComponent::Type>);
 static std::string s_genSQLCondition(const Filter& filter, std::optional<ElectronicComponent::Type>);
+static void s_genSQLConditionsFromFilterNode(std::string& str, const FilterNode& node, std::optional<ElectronicComponent::Type>);
+static bool s_filtersOnlyHaveGenericProperties(const FilterNode& filterTree);
 static int s_chooseBestBatchSize(int sizeHint);
 static int s_floorPowerOf2(int x);
 
@@ -381,9 +384,8 @@ std::unique_ptr<ElectronicComponent> SQLiteDatabase::getComponent(
 MassQueryResult SQLiteDatabase::getAllComponents(
     const MassQueryConfig& queryConfig
 ) {
-    for(const Filter& filter : queryConfig.filters)
-        if(static_cast<size_t>(filter.property) >= static_cast<size_t>(ElectronicComponent::Property::End))
-            _throwError("Non-generic property used in a generic mass query");
+    if(queryConfig.filters.has_value() && !s_filtersOnlyHaveGenericProperties(queryConfig.filters.value()))
+        _throwError("Non-generic property found in one of the filters while calling a generic mass query");
 
     return _getAllComponents(queryConfig);
 }
@@ -1343,58 +1345,82 @@ void SQLiteDatabase::_applyMassQueryBindings(
 
     int paramIndex = 1;
 
-    for(const Filter& filter : config.filters) {
-        if(!filter.isValid()) {
-            paramIndex++;
-            if(filter.operation == Filter::Operation::InRange ||
-                filter.operation == Filter::Operation::NotInRange)
-                paramIndex++;
-            continue;
-        }
-
-        switch(filter.value.index()) {
-        case 0: { // String
-            const std::string& str = std::get<std::string>(filter.value);
-
-            size_t length = str.length();
-            const char* format = "%s";
-            if(filter.operation == Filter::Operation::Contains) { format = "%%%s%%"; length += 2; }
-            else if(filter.operation == Filter::Operation::StartsWith) { format = "%s%%"; length += 1; }
-            else if(filter.operation == Filter::Operation::EndsWith) { format = "%%%s"; length += 1; }
-
-            char* pattern = static_cast<char*>(malloc(length + 1));
-            snprintf(pattern, length + 1, format, str.c_str());
-
-            sqlite3_bind_text(accessor, paramIndex++, pattern, length, free);
-            break;
-        }
-        case 1: // Double
-            sqlite3_bind_double(accessor, paramIndex++, std::get<double>(filter.value));
-            break;
-        case 2: // BigInt
-            sqlite3_bind_int64(accessor, paramIndex++, std::get<size_t>(filter.value));
-            break;
-        case 3: { // Double range
-            std::pair<double, double> range = std::get<std::pair<double, double>>(filter.value);
-            sqlite3_bind_double(accessor, paramIndex++, range.first);
-            sqlite3_bind_double(accessor, paramIndex++, range.second);
-            break;
-        }
-        case 4: { // BigInt Range
-            std::pair<size_t, size_t> range = std::get<std::pair<size_t, size_t>>(filter.value);
-            sqlite3_bind_int64(accessor, paramIndex++, range.first);
-            sqlite3_bind_int64(accessor, paramIndex++, range.second);
-            break;
-        }
-        default:
-            sqlite3_bind_null(accessor, paramIndex++);
-        }
-    }
+    if(config.filters.has_value())
+        _applyFilterTreeBindings(accessor, config.filters.value(), paramIndex, type);
 
     if(config.pagination.has_value()) {
         size_t itemsPerPage = config.pagination.value().itemsPerPage;
         sqlite3_bind_int(accessor, paramIndex++, itemsPerPage);
         sqlite3_bind_int(accessor, paramIndex++, pageIndex * itemsPerPage);
+    }
+}
+
+void SQLiteDatabase::_applyFilterTreeBindings(
+    sqlite3_stmt* accessor,
+    const FilterNode& node,
+    int& paramIndex,
+    std::optional<ElectronicComponent::Type> type
+) {
+    if(node.type == FilterNode::Type::Filter)
+        goto bindFilter;
+
+    if(node.type == FilterNode::Type::Not) {
+        _applyFilterTreeBindings(accessor, node.children[0], paramIndex, type);
+        return;
+    }
+
+    for(auto& child : node.children)
+        _applyFilterTreeBindings(accessor, child, paramIndex, type);
+
+    return;
+
+bindFilter:
+    const Filter& filter = node.filter.value();
+
+    if(!filter.isValid()) {
+        paramIndex++;
+        if(filter.operation == Filter::Operation::InRange ||
+            filter.operation == Filter::Operation::NotInRange)
+            paramIndex++;
+        return;
+    }
+
+    switch(filter.value.index()) {
+    case 0: { // String
+        const std::string& str = std::get<std::string>(filter.value);
+
+        size_t length = str.length();
+        const char* format = "%s";
+        if(filter.operation == Filter::Operation::Contains) { format = "%%%s%%"; length += 2; }
+        else if(filter.operation == Filter::Operation::StartsWith) { format = "%s%%"; length += 1; }
+        else if(filter.operation == Filter::Operation::EndsWith) { format = "%%%s"; length += 1; }
+
+        char* pattern = static_cast<char*>(malloc(length + 1));
+        snprintf(pattern, length + 1, format, str.c_str());
+
+        sqlite3_bind_text(accessor, paramIndex++, pattern, length, free);
+        break;
+    }
+    case 1: // Double
+        sqlite3_bind_double(accessor, paramIndex++, std::get<double>(filter.value));
+        break;
+    case 2: // BigInt
+        sqlite3_bind_int64(accessor, paramIndex++, std::get<size_t>(filter.value));
+        break;
+    case 3: { // Double range
+        std::pair<double, double> range = std::get<std::pair<double, double>>(filter.value);
+        sqlite3_bind_double(accessor, paramIndex++, range.first);
+        sqlite3_bind_double(accessor, paramIndex++, range.second);
+        break;
+    }
+    case 4: { // BigInt Range
+        std::pair<size_t, size_t> range = std::get<std::pair<size_t, size_t>>(filter.value);
+        sqlite3_bind_int64(accessor, paramIndex++, range.first);
+        sqlite3_bind_int64(accessor, paramIndex++, range.second);
+        break;
+    }
+    default:
+        sqlite3_bind_null(accessor, paramIndex++);
     }
 }
 
@@ -1746,7 +1772,6 @@ void SQLiteDatabase::_getIntegratedCircuitsInBatches(
 
 static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type> type) {
     std::string sql;
-    int andKeyword = 0;
 
     sql.reserve(256);
 
@@ -1767,26 +1792,20 @@ static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, st
         sql += ".ComponentID ";
     }
 
-    if(type.has_value() || !config.filters.empty())
+    if(type.has_value() || config.filters.has_value())
         sql += "WHERE ";
 
     if(type.has_value()) {
         sql += "ElectronicComponents.Type = ";
         sql += std::to_string(static_cast<int>(type.value()));
         sql += ' ';
-        andKeyword++;
-    }
 
-    for(const Filter& filter : config.filters) {
-        if(andKeyword) {
+        if(config.filters.has_value())
             sql += "AND ";
-            andKeyword--;
-        }
-
-        sql += s_genSQLCondition(filter, type);
-        sql += ' ';
-        andKeyword++;
     }
+
+    if(config.filters.has_value())
+        s_genSQLConditionsFromFilterNode(sql, config.filters.value(), type);
 
     if((config.order.has_value() || config.sortBy.has_value()) && !config.statisticsOnly)
         sql += "ORDER BY ";
@@ -2045,6 +2064,57 @@ static std::string s_genSQLCondition(const Filter& filter, std::optional<Electro
     }
 
     return str;
+}
+
+static void s_genSQLConditionsFromFilterNode(
+    std::string& sql,
+    const FilterNode& node,
+    std::optional<ElectronicComponent::Type> type
+) {
+    node.throwIfNotValid();
+
+    if(node.type == FilterNode::Type::Filter) {
+        sql += s_genSQLCondition(node.filter.value(), type);
+        return;
+    }
+
+    sql += '(';
+
+    if(node.type == FilterNode::Type::Not) {
+        sql += "NOT ";
+        s_genSQLConditionsFromFilterNode(sql, node.children[0], type);
+        sql += ')';
+        return;
+    }
+
+    const char* keyword = node.type == FilterNode::Type::And ? " AND " : " OR ";
+    int printKeyword = 0;
+
+    for(auto& child : node.children) {
+        if(printKeyword) {
+            sql += keyword;
+            printKeyword--;
+        }
+        s_genSQLConditionsFromFilterNode(sql, child, type);
+        printKeyword++;
+    }
+
+    sql += ')';
+}
+
+static bool s_filtersOnlyHaveGenericProperties(const FilterNode& node) {
+    node.throwIfNotValid();
+
+    if(node.type == FilterNode::Type::Filter) {
+        const Filter& filter = node.filter.value();
+        return static_cast<size_t>(filter.property) < static_cast<size_t>(ElectronicComponent::Property::End);
+    }
+
+    for(auto& child : node.children)
+        if(!s_filtersOnlyHaveGenericProperties(child))
+            return false;
+
+    return true;
 }
 
 static int s_chooseBestBatchSize(int sizeHint) {
