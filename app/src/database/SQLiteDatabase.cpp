@@ -1283,6 +1283,8 @@ sqlite3_stmt* SQLiteDatabase::_getMassQueryAccessor(
     const MassQueryConfig& config,
     std::optional<ElectronicComponent::Type> type
 ) {
+    // TODO: Although super duper unlikely, generating a key based of this
+    // approach could lead to collisions. Some day, this should be fixed!
     uint64_t key = config.hash();
     s_combineHash(key, type);
 
@@ -1307,10 +1309,12 @@ sqlite3_stmt* SQLiteDatabase::_getMassQueryAccessor(
 sqlite3_stmt* SQLiteDatabase::_getBatchAccessor(const MassQueryConfig& config, ElectronicComponent::Type type, int& batchSize) {
     batchSize = s_chooseBestBatchSize(batchSize);
 
-    uint64_t key = static_cast<uint64_t>(type);
-    s_combineHash(key, batchSize);
-    s_combineHash(key, config.order);
-    s_combineHash(key, config.sortBy);
+    uint64_t key = batchSize;
+    key |= static_cast<uint64_t>(config.sortBy.value_or(
+        static_cast<ComponentProperty>(ElectronicComponent::Property::ID)
+    )) << 32;
+    key |= static_cast<uint64_t>(config.order.value_or(SortOrder::Any)) << 48;
+    key |= static_cast<uint64_t>(type) << 56;
 
     auto cachedAccessor = m_batchAccessorsCache.find(key);
 
