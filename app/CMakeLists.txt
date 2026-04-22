@@ -40,13 +40,14 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/sql/Schema.sql")
 set(DBSQL_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/sql/Accessors.sql"
+    "${CMAKE_CURRENT_SOURCE_DIR}/sql/Transaction.sql"
 )
 set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_SOURCE_DIR}/include/database/EmbeddedSQLCode.hpp")
 add_custom_command(
     OUTPUT ${DBSQL_OUTPUT_HPP}
     COMMAND ${CMAKE_COMMAND}
         -D DBSQL_SCHEMA_SRC=${DBSQL_SCHEMA_SRC}
-        -D DBSQL_SRCS=${DBSQL_SRCS}
+        -D DBSQL_SRCS="${DBSQL_SRCS}"
         -D DBSQL_OUTPUT_HPP=${DBSQL_OUTPUT_HPP}
         -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedSQL.cmake"
     DEPENDS ${DBSQL_SCHEMA_SRC} ${DBSQL_SRCS}

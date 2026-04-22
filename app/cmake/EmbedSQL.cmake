@@ -48,6 +48,8 @@ string(APPEND HEADER_CONTENT "    static const char* DBSQL_SCHEMA =\nR\"(")
 string(APPEND HEADER_CONTENT "${SCHEMA_CONTENT}")
 string(APPEND HEADER_CONTENT ")\";\n\n")
 
+string(REPLACE " " ";" DBSQL_SRCS "${DBSQL_SRCS}")
+
 # Process each SQL source file
 foreach(SQL_FILE ${DBSQL_SRCS})
     file(READ "${SQL_FILE}" FILE_CONTENT)
