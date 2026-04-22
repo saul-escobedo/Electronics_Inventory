@@ -190,6 +190,12 @@ namespace ecim {
             size_t pageIndex = 0,
             std::optional<ElectronicComponent::Type> type = std::optional<ElectronicComponent::Type>()
         );
+        void _applyFilterTreeBindings(
+            sqlite3_stmt* accessor,
+            const FilterNode& root,
+            int& paramIndex,
+            std::optional<ElectronicComponent::Type> type
+        );
         void _getAdditionalComponentPropertiesInBatches(
             std::vector<ComponentBase>& bases,
             const MassQueryConfig& config,
