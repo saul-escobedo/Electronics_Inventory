@@ -77,21 +77,80 @@ struct SQLiteDatabase::BatchesCount {
     size_t numChips;
 };
 
-class SQLiteTransaction : public Transaction {
-public:
-    void commit() override {
+class SQLiteDatabase::SQLiteTransaction : public Transaction {
+private:
+    friend class SQLiteDatabase;
 
+    SQLiteDatabase* m_dbHandle;
+    bool m_committed;
+
+    void _ensureDBExists() {
+        if(!m_dbHandle)
+            throw DatabaseException("Cannot commit or rollback transaction because the sqlite DB instance has been terminated or transaction was commited");
+    }
+
+    void _rollback() {
+        int ret;
+
+        sqlite3_reset(m_dbHandle->m_rollbackTransaction);
+        ret = sqlite3_step(m_dbHandle->m_rollbackTransaction);
+
+        m_dbHandle->_checkResultCode(ret, "Could not rollback transaction");
+
+        m_dbHandle->m_transactionHandle = nullptr;
+        m_dbHandle = nullptr;
+    }
+public:
+    SQLiteTransaction(SQLiteDatabase* parent) :
+    m_dbHandle(parent),
+    m_committed(false) {
+        int ret;
+
+        sqlite3_reset(m_dbHandle->m_startTransaction);
+        ret = sqlite3_step(m_dbHandle->m_startTransaction);
+
+        m_dbHandle->_checkResultCode(ret, "Could not start transaction");
+
+        m_dbHandle->m_transactionHandle = this;
+    }
+
+    ~SQLiteTransaction() {
+        if(!m_dbHandle || m_committed)
+            return;
+
+        _rollback();
+    }
+
+    void commit() override {
+        if(m_committed)
+            return;
+
+        _ensureDBExists();
+
+        int ret;
+
+        sqlite3_reset(m_dbHandle->m_commitTransaction);
+        ret = sqlite3_step(m_dbHandle->m_commitTransaction);
+
+        m_dbHandle->_checkResultCode(ret, "Coult not commit transaction");
+        m_dbHandle->m_transactionHandle = nullptr;
+
+        m_committed = true;
     }
 
     void rollback() override {
+        if(m_committed)
+            m_dbHandle->_throwError("Cannot rollback a transaction that was already committed");
 
+        _ensureDBExists();
+        _rollback();
     }
 };
 
 template <class T>
 inline static void s_combineHash(uint64_t& s, const T& v) {
     std::hash<T> hash;
-    s ^= hash(v) + 0x9e3779b9 + (s<< 6) + (s>> 2);
+    s ^= hash(v) + 0x9e3779b9 + (s << 6) + (s >> 2);
 }
 
 static std::string s_genSQLStatement4MassQuery(const MassQueryConfig& config, std::optional<ElectronicComponent::Type>);
@@ -131,14 +190,20 @@ void SQLiteDatabase::initialize() {
         throw FailedInitializationException(DB_BACKEND_NAME, message);
     }
 
-    m_transactionStarted = false;
+    m_transactionHandle = nullptr;
 
     _createSQLiteAccessors();
+    _createSQLiteTransactionStatements();
 }
 
 void SQLiteDatabase::shutdown() {
     _checkInitialization();
+
     _destroySQLiteAccessors();
+    _destroySQLiteTransactionStatements();
+
+    if(m_transactionHandle)
+        m_transactionHandle->m_dbHandle = nullptr;
 
     sqlite3_close(m_db);
 }
@@ -415,10 +480,10 @@ MassQueryResult SQLiteDatabase::getAllComponentsByType(
 std::unique_ptr<Transaction> SQLiteDatabase::startTransaction() {
     _checkInitialization();
 
-    if(m_transactionStarted)
+    if(m_transactionHandle)
         _throwError("A transaction is already active");
 
-    return nullptr;
+    return std::make_unique<SQLiteTransaction>(this);
 }
 
 void SQLiteDatabase::_throwError(const char* m, const char* sqlCode) {
@@ -489,6 +554,38 @@ void SQLiteDatabase::_destroySQLiteAccessors() {
         if(ret != SQLITE_OK)
             _throwError("Failed to destroy batch accessor SQL statement");
     }
+}
+
+void SQLiteDatabase::_createSQLiteTransactionStatements() {
+    int ret;
+
+    ret = sqlite3_prepare_v2(m_db, DBSQL_START_TRANSACTION, -1, &m_startTransaction, nullptr);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to create 'start transaction' statement", DBSQL_START_TRANSACTION);
+
+    ret = sqlite3_prepare_v2(m_db, DBSQL_COMMIT_TRANSACTION, -1, &m_commitTransaction, nullptr);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to create 'commit transaction' statement", DBSQL_COMMIT_TRANSACTION);
+
+    ret = sqlite3_prepare_v2(m_db, DBSQL_ROLLBACK_TRANSACTION, -1, &m_rollbackTransaction, nullptr);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to create 'rollback transaction' statement", DBSQL_ROLLBACK_TRANSACTION);
+}
+
+void SQLiteDatabase::_destroySQLiteTransactionStatements() {
+    int ret;
+
+    ret = sqlite3_finalize(m_startTransaction);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to destroy 'start transaction' statement");
+
+    ret = sqlite3_finalize(m_commitTransaction);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to destroy 'commit transaction' statement");
+
+    ret = sqlite3_finalize(m_rollbackTransaction);
+    if(ret != SQLITE_OK)
+        _throwError("Failed to destroy 'rollback transaction' statement");
 }
 
 void SQLiteDatabase::_addAdditionalComponentProperties(

@@ -88,10 +88,16 @@ namespace ecim {
     private:
         struct ComponentBase;
         struct BatchesCount;
+        class SQLiteTransaction;
+        friend class SQLiteTransaction;
 
         sqlite3* m_db;
-        bool m_transactionStarted;
         std::string m_dbFilename;
+
+        SQLiteTransaction* m_transactionHandle;
+        sqlite3_stmt* m_startTransaction;
+        sqlite3_stmt* m_commitTransaction;
+        sqlite3_stmt* m_rollbackTransaction;
 
         SQLAccessors m_accessors;
         std::unordered_map<uint64_t, sqlite3_stmt*> m_massQueryAccessorsCache;
@@ -114,8 +120,11 @@ namespace ecim {
 
         // Check if the database is initialized before using accessor functions
         void _checkInitialization();
+
         void _createSQLiteAccessors();
         void _destroySQLiteAccessors();
+        void _createSQLiteTransactionStatements();
+        void _destroySQLiteTransactionStatements();
 
         // Add specific component properties depending on its type
         void _addAdditionalComponentProperties(

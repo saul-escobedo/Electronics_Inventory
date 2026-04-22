@@ -212,4 +212,13 @@ R"(UPDATE IntegratedCircuits
 SET PinCount = ?, Width = ?, Height = ?, Length = ?
 WHERE ComponentID = ?)";
 
+    static const char *DBSQL_START_TRANSACTION =
+R"(BEGIN)";
+
+    static const char *DBSQL_COMMIT_TRANSACTION =
+R"(COMMIT)";
+
+    static const char *DBSQL_ROLLBACK_TRANSACTION =
+R"(ROLLBACK)";
+
 }

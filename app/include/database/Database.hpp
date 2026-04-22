@@ -81,6 +81,9 @@ namespace ecim {
 
         /// @brief Start a database transaction.
         ///
+        /// What is a transaction? Read `Transaction.hpp` to help you get up to
+        /// speed on what it is and why it is useful.
+        ///
         /// @throws DatabaseException if database cannot initiate a
         /// transaction.
         ///
@@ -89,6 +92,7 @@ namespace ecim {
         ///
         /// @note call `tx->commit()` if changes are meant to be saved. When
         /// the instance is destroyed, changes are reverted.
+        ///
         [[nodiscard]] virtual std::unique_ptr<Transaction> startTransaction() = 0;
     };
 }
