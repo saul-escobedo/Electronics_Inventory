@@ -5,6 +5,15 @@ project(ecim_impl)
 # Find Qt6 required components
 find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
+# Fetch nlohmann/json for settings management
+include(FetchContent)
+FetchContent_Declare(
+    json
+    URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(json)
+
 # Find SQLite3 database engine
 find_package(SQLite3)
 if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
@@ -16,8 +25,9 @@ endif()
 # reviewing new source files easier since adding sources will be
 # more intentional.
 set(APP_SOURCES
-    src/Application.cpp
-    src/electronics_manager.cpp
+	src/Application.cpp
+	src/electronics_manager.cpp
+	src/settings/Settings.cpp
 
     src/database/MassQueryConfig.cpp
     src/database/SQLiteDatabase.cpp
@@ -30,8 +40,10 @@ add_library(${PROJECT_NAME} OBJECT ${APP_SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC include)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC
-    Qt6::Core
-    Qt6::Widgets
+	Qt6::Core
+	Qt6::Widgets
+
+	nlohmann_json::nlohmann_json
 
     SQLite3::SQLite3
 )
@@ -77,6 +89,7 @@ if(ENABLE_TESTING)
     add_executable(ecim_tests
         tests/test_components.cpp
         tests/test_sqlitedb.cpp
+        tests/test_settings.cpp
     )
 
     target_include_directories(ecim_tests PRIVATE include)
@@ -87,11 +100,9 @@ if(ENABLE_TESTING)
     # Register the test executable with CTest (enable_testing is called in the root CMakeLists)
     add_test(NAME ecim_tests COMMAND ecim_tests)
 
-    add_dependencies(ecim_tests embed_sql)
-
-    # Convenience target to run ctest with output on failure
-    add_custom_target(check
-        COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-        DEPENDS ecim_tests
-    )
+	# Convenience target to run ctest with output on failure
+	add_custom_target(check
+		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
+		DEPENDS my_tests
+	)
 endif()
