@@ -15,7 +15,9 @@ namespace ecim {
     /// obtained if pagination is enabled.
     struct MassQueryResult {
         std::vector<std::unique_ptr<ElectronicComponent>> items;
-        size_t totalItems;
-        size_t totalPages;
+        size_t numItems;
+        size_t numPages;
+        size_t totalNumItems;
+        size_t currentPage;
     };
 }
