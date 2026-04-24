@@ -10,13 +10,11 @@ namespace ecim {
         double voltage;
         double current;
         double power;
-        double tolerance;
 
         bool valid() const {
             return voltage >= 0
                 && current >= 0
-                && power >= 0
-                && tolerance >= 0;
+                && power >= 0;
         }
     };
 
@@ -36,9 +34,9 @@ namespace ecim {
 
     public:
         // Type of electronic component. Any new type of component (like a new
-        // dervied class) must be added here.
+        // dervied class) must be added here after the last.
         enum class Type {
-            Resistor,
+            Resistor = 1,
             Capacitor,
             Inductor,
             Diode,
@@ -67,7 +65,7 @@ namespace ecim {
 
             // This value must equal to the first entry of each derived class's
             // properties enum.
-            End = 0xFFFF
+            End = 0xFF
         };
 
         // Basic properties of an electronic component. It is used to
@@ -113,6 +111,8 @@ namespace ecim {
         ElectronicComponent() = delete;
         ElectronicComponent(const ElectronicComponent&) = delete;
         ElectronicComponent(ElectronicComponent&&) = delete;
+
+        virtual ~ElectronicComponent() {}
 
         const string &name() const { return m_name; }
         Type type() const { return m_type; }

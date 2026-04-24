@@ -7,7 +7,7 @@ namespace ecim {
     /// single unit of work. When committing, all changes made within the
     /// transaction are saved permanently. If any error occurs, changes are
     /// rolled back, meaning all operations made since the start of the
-    /// transaction are undone. This ensures that the data remains consistent.
+    /// transaction are undone. This ensures data integrety.
     ///
     /// An instance of a transaction is returned from a database
     /// implementation. If the object is destroyed before calling `commit()`,
@@ -17,6 +17,8 @@ namespace ecim {
     /// Calling `commit()` is nesseary if the changes are meant to be saved.
     class Transaction {
     public:
+        virtual ~Transaction() {}
+
         virtual void commit() = 0;
         virtual void rollback() = 0;
     };
