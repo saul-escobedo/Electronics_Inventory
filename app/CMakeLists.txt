@@ -103,6 +103,6 @@ if(ENABLE_TESTING)
 	# Convenience target to run ctest with output on failure
 	add_custom_target(check
 		COMMAND ${CMAKE_CTEST_COMMAND} --output-on-failure
-		DEPENDS my_tests
+		DEPENDS ecim_tests
 	)
 endif()
