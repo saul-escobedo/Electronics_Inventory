@@ -2,11 +2,15 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ecim_impl)
 
+
+# ----- Dependencies -----
+
+include(FetchContent)
+
 # Find Qt6 required components
 find_package(Qt6 COMPONENTS Core Widgets REQUIRED)
 
 # Fetch nlohmann/json for settings management
-include(FetchContent)
 FetchContent_Declare(
     json
     URL https://github.com/nlohmann/json/archive/refs/tags/v3.11.3.zip
@@ -14,11 +18,21 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(json)
 
+FetchContent_Declare(
+    pybind11
+    URL https://github.com/pybind/pybind11/archive/refs/tags/v3.0.4.zip
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(pybind11)
+
 # Find SQLite3 database engine
 find_package(SQLite3)
 if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
     add_library(SQLite3::SQLite3 ALIAS SQLite::SQLite3)
 endif()
+
+# ----- EndDependencies -----
+
 
 # Source files must be explicitly added because globbing files could
 # unintentionally include wrong or temporary CPP files. It also makes
@@ -46,6 +60,8 @@ target_link_libraries(${PROJECT_NAME} PUBLIC
 	nlohmann_json::nlohmann_json
 
     SQLite3::SQLite3
+
+    pybind11::embed
 )
 
 # Embed SQL code into a header file
