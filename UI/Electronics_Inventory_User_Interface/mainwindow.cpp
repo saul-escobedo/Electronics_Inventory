@@ -1,12 +1,9 @@
 #include "mainwindow.h"
 #include "./ui_mainwindow.h"
-#include "QMessageBox"
+#include <QMessageBox>
 #include "add_item_dialog.h"
 #include <QHeaderView>
 #include "view_item_dialog.h"
-#include <QSqlDatabase>
-#include <QSqlQuery>
-#include <QSqlError>
 #include <QDebug>
 #include <QSettings>
 #include <QDir>
@@ -25,42 +22,35 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->setupUi(this);
 
-
-
-    //Start implementing the database class.
-    //This is a test
-    //
-
     if(!dbManager.openDatabase())
     {
-        qDebug() << "Database failed to opoen";
+        qDebug() << "Database failed to open";
     } else
         qDebug() << "Database opened successfully";
 
     dbManager.createTable();
 
-
-    //For the total parts stat.
     update_total_parts_label();
-    //For text to show on search bar.
+    
     connect(ui->Search_Bar, &QLineEdit::textChanged,
             this, &MainWindow::on_search_text_changed);
-    //For pop-up after pressed enter on search bar.
     connect(ui->Search_Bar, &QLineEdit::returnPressed,
             this, &MainWindow::on_search_enter_pressed);
 
-    //Initialize the table in Dashboard.
+    // Initialize the table
+    const int COL_NAME = 0;
+    const int COL_QUANTITY = 1;
+    const int COL_PART = 2;
+    
     ui->Inventory_Table->setColumnCount(3);
     QStringList headers;
     headers << "Item Name" << "Parts in Stock" << "Part Number";
     ui->Inventory_Table->setHorizontalHeaderLabels(headers);
     ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-
-    //This lets the table be sorted
     ui->Inventory_Table->setSortingEnabled(true);
 
-    //Load items into the table and update the total parts label.
+    // Load items into the table
     QVector<Item> items = dbManager.getAllItems();
 
     for(const Item &item : items)
@@ -69,9 +59,7 @@ MainWindow::MainWindow(QWidget *parent)
     }
     update_total_parts_label();
 
-    //Edits the Add Item button
-    //What heppens when you use the ok or cancel from "Add Item".
-    //Also makes sure that Add Item dialog pops up ONLY when pressing the button.
+    // Add Item button
     connect(ui->Add_Item, &QPushButton::clicked, this, [this]()
     {
         Add_Item_Dialog dialog(this);
@@ -89,7 +77,8 @@ MainWindow::MainWindow(QWidget *parent)
             update_total_parts_label();
         }
     });
-    //Detects what happens when you double click on an item from inventory table.
+    
+    // Double-click to view item
     connect(ui->Inventory_Table,
             &QTableWidget::cellDoubleClicked,
             this,
@@ -122,7 +111,7 @@ MainWindow::MainWindow(QWidget *parent)
             update_total_parts_label();
         });
 
-        // ✏️ HANDLE UPDATE
+        // Handle Update
         if(dialog.exec() == QDialog::Accepted)
         {
             Item item;
@@ -133,11 +122,11 @@ MainWindow::MainWindow(QWidget *parent)
 
             dbManager.updateItem(partNumber, item);
 
-            // update UI
-            ui->Inventory_Table->item(row,0)->setText(item.name);
-            ui->Inventory_Table->item(row,1)->setText(QString::number(item.quantity));
-            ui->Inventory_Table->item(row,2)->setText(QString::number(item.partNumber));
-            ui->Inventory_Table->item(row,0)->setData(Qt::UserRole, item.imagePath);
+            // Update UI
+            ui->Inventory_Table->item(row, 0)->setText(item.name);
+            ui->Inventory_Table->item(row, 1)->setText(QString::number(item.quantity));
+            ui->Inventory_Table->item(row, 2)->setText(QString::number(item.partNumber));
+            ui->Inventory_Table->item(row, 0)->setData(Qt::UserRole, item.imagePath);
             update_total_parts_label();
         }
 
@@ -152,41 +141,34 @@ MainWindow::MainWindow(QWidget *parent)
             QSettings settings("MyCompany", "InventoryApp");
             QString newFolder = settings.value("dbPath").toString();
 
-            //MoVe database
             if(!dbManager.moveDatabase(newFolder))
             {
-                QMessageBox::warning(this, "Error", "Failed to move databse.");
+                QMessageBox::warning(this, "Error", "Failed to move database.");
                 return;
             }
-                ui->Inventory_Table->setRowCount(0);
+            
+            ui->Inventory_Table->setRowCount(0);
+            QVector<Item> items = dbManager.getAllItems();
+            for(const Item &item : items)
+            {
+                add_item(item.name, item.quantity, item.partNumber, item.imagePath);
+            }
+            update_total_parts_label();
+        });
 
-                QVector<Item> items = dbManager.getAllItems();
-                for(const Item &item : items)
-                {
-                    add_item(item.name, item.quantity, item.partNumber, item.imagePath);
-                }
-
-                update_total_parts_label();
-            });
-        //Not sure about here.
         startBackupTimer();
-
         dialog.exec();
     });
-    //Creating timer object.
-    //Every time timer "times out" calls performBackup()
+
+    // Setup backup timer
     backupTimer = new QTimer(this);
-    connect(backupTimer, &QTimer::timeout,
-            this, &MainWindow::performBackup);
+    connect(backupTimer, &QTimer::timeout, this, &MainWindow::performBackup);
     startBackupTimer();
 
 }
 
-//Updates the number of current stock.
 void MainWindow::update_total_parts_label()
 {
-    // ui->Total_Parts->setText(
-    //     QString("Total parts: %1").arg(total_parts));
     int total = 0;
     int rows = ui->Inventory_Table->rowCount();
     for(int i = 0; i < rows; i++)
@@ -203,32 +185,44 @@ void MainWindow::update_total_parts_label()
 
 void MainWindow::on_search_text_changed(const QString &text)
 {
-    qDebug() << "Searching for: " << text;
+    if (text.isEmpty()) {
+        // Show all items when search is empty
+        for (int i = 0; i < ui->Inventory_Table->rowCount(); ++i) {
+            ui->Inventory_Table->setRowHidden(i, false);
+        }
+        return;
+    }
+
+    // Hide rows that don't match the search text
+    for (int i = 0; i < ui->Inventory_Table->rowCount(); ++i) {
+        QTableWidgetItem *nameItem = ui->Inventory_Table->item(i, 0);
+        QTableWidgetItem *partItem = ui->Inventory_Table->item(i, 2);
+        
+        bool nameMatch = nameItem && nameItem->text().contains(text, Qt::CaseInsensitive);
+        bool partMatch = partItem && partItem->text().contains(text, Qt::CaseInsensitive);
+        
+        ui->Inventory_Table->setRowHidden(i, !(nameMatch || partMatch));
+    }
 }
 
 void MainWindow::on_search_enter_pressed()
 {
-    QString text = ui->Search_Bar->text();
-    QMessageBox::information(
-        this,
-        "Search Entered",
-        "You typed: " + text);
+    // Search is already handled in on_search_text_changed
+    // This function can be used for additional actions if needed
 }
 
-//Adds item to Inventory Table.
 void MainWindow::add_item(const QString &name, int quantity, int part_num, const QString &image_path)
 {
     int row = ui->Inventory_Table->rowCount();
     ui->Inventory_Table->insertRow(row);
 
     QTableWidgetItem *name_item = new QTableWidgetItem(name);
-    // QTableWidgetItem *quantity_item = new QTableWidgetItem(QString::number(quantity));
     QTableWidgetItem *quantity_item = new QTableWidgetItem();
     quantity_item->setData(Qt::DisplayRole, quantity);
     QTableWidgetItem *part_item = new QTableWidgetItem();
     part_item->setData(Qt::DisplayRole, part_num);
 
-    //Store hidden data, image path
+    // Store image path as hidden data
     name_item->setData(Qt::UserRole, image_path);
 
     ui->Inventory_Table->setItem(row, 0, name_item);
@@ -243,11 +237,8 @@ void MainWindow::open_item_view(int row, int column)
     QTableWidgetItem *name_item = ui->Inventory_Table->item(row, 0);
 
     QString name = name_item->text();
-    int quantity = ui->Inventory_Table->item(row, 1) -> text().toInt();
+    int quantity = ui->Inventory_Table->item(row, 1)->text().toInt();
     int part_number = ui->Inventory_Table->item(row, 2)->text().toInt();
-
-    //Retrieve hidden data
-    //We can use QT::UserRole to store hidden data within each item.
     QString image_path = name_item->data(Qt::UserRole).toString();
 
     View_Item_Dialog dialog(this);
@@ -274,16 +265,16 @@ void MainWindow::startBackupTimer()
         return;
     }
 
-    int intervalMs = 0;
+    qint64 intervalMs = 0;
 
     if(freq == "Daily")
-        intervalMs = 24 * 60 * 60 * 1000;
+        intervalMs = 24LL * 60 * 60 * 1000;
 
     else if(freq == "Weekly")
-        intervalMs = 7 * 24 * 60 * 60 * 1000;
+        intervalMs = 7LL * 24 * 60 * 60 * 1000;
 
     else if(freq == "Monthly")
-        intervalMs = 30 * 24 * 60 * 60 * 1000;
+        intervalMs = 30LL * 24 * 60 * 60 * 1000;
 
     if(intervalMs > 0)
     {
