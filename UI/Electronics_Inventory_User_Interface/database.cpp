@@ -1,18 +1,16 @@
 #include "database.h"
-#include <QSqlQuery>
-#include <QSqlError>
 #include <QDebug>
-#include <QDir>     //Used for the directory of the database file.
+#include <QDir>
 #include <QCoreApplication>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QFile>
-
+#include "database/exceptions/Exceptions.hpp"
 
 Database::Database()
+    : m_db(nullptr), m_initialized(false)
 {
-    db = QSqlDatabase::addDatabase("QSQLITE");
-    //REad db path from settings in Database class.
+    // Read db path from settings
     QSettings settings("MyCompany", "InventoryApp");
 
     QString folderPath = settings.value(
@@ -20,165 +18,187 @@ Database::Database()
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
                                      ).toString();
 
-    QDir().mkpath(folderPath);      //enddure folder exists
+    QDir().mkpath(folderPath);  // Ensure folder exists
 
-    QString fullPath = folderPath + "/inventory.db";
+    m_dbPath = folderPath + "/inventory.db";
 
-    //This sets the .db directory to the executable directory.
-    //QString path = QCoreApplication::applicationDirPath() + "/inventory.db";
-    db.setDatabaseName(fullPath);
+    qDebug() << "DB Path: " << m_dbPath;
+}
 
-    qDebug() << "DB Path: " << fullPath;
+Database::~Database()
+{
+    if (m_db && m_initialized) {
+        m_db->shutdown();
+    }
 }
 
 bool Database::openDatabase()
 {
-    if(!db.open())
-    {
-        qDebug() << "Error opening database: " << db.lastError().text();
+    try {
+        if (!m_db) {
+            m_db = std::make_unique<ecim::SQLiteDatabase>(m_dbPath.toStdString());
+            m_db->initialize();
+            m_initialized = true;
+        }
+        return true;
+    } catch (const ecim::DatabaseException& e) {
+        qDebug() << "Error opening database: " << e.what();
         return false;
     }
-    return true;
 }
 
 void Database::createTable()
 {
-    QSqlQuery query;
-
-    query.exec(
-        "CREATE TABLE IF NOT EXISTS items ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "name TEXT,"
-        "quantity INTEGER,"
-        "partNumber INTEGER,"
-        "imagePath TEXT)"
-        );
+    // Tables are created automatically by SQLiteDatabase::initialize()
+    // This method is kept for API compatibility
 }
 
 bool Database::addItem(const Item &item)
 {
-    QSqlQuery query;
+    if (!m_initialized) {
+        if (!openDatabase()) {
+            return false;
+        }
+    }
 
-    query.prepare("INSERT INTO items (name, quantity, partNumber, imagePath) "
-                  "VALUES (?, ?, ?, ?)");
-
-    query.addBindValue(item.name);
-    query.addBindValue(item.quantity);
-    query.addBindValue(item.partNumber);
-    query.addBindValue(item.imagePath);
-
-    if(!query.exec())
-    {
-        qDebug() << "Insert failed: " << query.lastError().text();
+    try {
+        auto component = item.toComponent();
+        ecim::ComponentID id = m_db->addComponent(*component);
+        return id != 0;
+    } catch (const ecim::DatabaseException& e) {
+        qDebug() << "Insert failed: " << e.what();
         return false;
     }
-    return true;
 }
 
 QVector<Item> Database::getAllItems()
 {
     QVector<Item> items;
 
-    QSqlQuery query("SELECT name, quantity, partNumber, imagePath FROM items");
-
-    while (query.next()) {
-        Item item;
-        item.name = query.value("name").toString();
-        item.quantity = query.value("quantity").toInt();
-        item.partNumber = query.value("partNumber").toInt();
-        item.imagePath = query.value("imagePath").toString();
-
-        items.append(item);
+    if (!m_initialized) {
+        if (!openDatabase()) {
+            return items;
+        }
     }
+
+    try {
+        ecim::MassQueryConfig config;
+        ecim::MassQueryResult result = m_db->getAllComponents(config);
+
+        for (const auto& component : result.items) {
+            Item item = Item::fromComponent(*component, component->ID());
+            items.append(item);
+        }
+    } catch (const ecim::DatabaseException& e) {
+        qDebug() << "Query failed: " << e.what();
+    }
+
     return items;
 }
 
 bool Database::updateItem(int originalPartNumber, const Item &item)
 {
-    QSqlQuery query;
-    query.prepare("UPDATE items SET name=?, quantity=?, partNumber=?, imagePath=? "
-                  "WHERE partNumber=?");
+    if (!m_initialized) {
+        if (!openDatabase()) {
+            return false;
+        }
+    }
 
-    query.addBindValue(item.name);
-    query.addBindValue(item.quantity);
-    query.addBindValue(item.partNumber);
-    query.addBindValue(item.imagePath);
-    query.addBindValue(originalPartNumber);
-
-    return query.exec();
+    try {
+        auto component = item.toComponent();
+        m_db->editComponent(originalPartNumber, *component);
+        return true;
+    } catch (const ecim::DatabaseException& e) {
+        qDebug() << "Update failed: " << e.what();
+        return false;
+    }
 }
 
 bool Database::deleteItem(int partNumber)
 {
-    QSqlQuery query;
-    query.prepare("DELETE FROM items WHERE partNumber=?");
+    if (!m_initialized) {
+        if (!openDatabase()) {
+            return false;
+        }
+    }
 
-    query.addBindValue(partNumber);
-
-    return query.exec();
+    try {
+        m_db->removeComponent(partNumber);
+        return true;
+    } catch (const ecim::DatabaseException& e) {
+        qDebug() << "Delete failed: " << e.what();
+        return false;
+    }
 }
 
 void Database::reopenDatabase()
 {
-    if(db.isOpen())
-        db.close();
+    if (m_db && m_initialized) {
+        m_db->shutdown();
+        m_initialized = false;
+    }
 
     QSettings settings("MyCompany", "InventoryApp");
 
     QString folderPath = settings.value("dbPath").toString();
-    QString fullPath = folderPath + "/inventory.db";
+    m_dbPath = folderPath + "/inventory.db";
 
-    db.setDatabaseName(fullPath);
-
-    if(!db.open())
-    {
-        qDebug() << "Failed to reopen DB: " << db.lastError().text();
+    if (!openDatabase()) {
+        qDebug() << "Failed to reopen DB";
     } else {
-        qDebug() << "DB reopened at: " << fullPath;
+        qDebug() << "DB reopened at: " << m_dbPath;
     }
 }
 
 QString Database::getDatabasePath() const
 {
-    return db.databaseName();
+    return m_dbPath;
 }
 
 bool Database::moveDatabase(const QString &newFolder)
 {
-    QString oldPath = db.databaseName();
     QString newPath = newFolder + "/inventory.db";
 
-    if(oldPath == newPath)
+    if (m_dbPath == newPath) {
         return true;
+    }
 
-    //Ensure folder exists
+    // Ensure folder exists
     QDir().mkpath(newFolder);
 
-    //Close db before copying
-    if(db.isOpen())
-        db.close();
+    // Close db before moving
+    if (m_db && m_initialized) {
+        m_db->shutdown();
+        m_initialized = false;
+    }
 
-    //If destination already exists, remove it
-    if(QFile::exists(newPath))
-    {
-        if(!QFile::remove(newPath))
-        {
+    // If destination already exists, remove it
+    if (QFile::exists(newPath)) {
+        if (!QFile::remove(newPath)) {
             qDebug() << "Failed to remove existing DB at new path.";
             return false;
         }
     }
 
-    //Copy file
-    if(!QFile::copy(oldPath, newPath))
-    {
+    // Copy file
+    if (!QFile::copy(m_dbPath, newPath)) {
         qDebug() << "Failed to copy DB file";
+        return false;
     }
 
-    //Reopen with new path
-    db.setDatabaseName(newPath);
+    // Remove old file
+    if (!QFile::remove(m_dbPath)) {
+        qDebug() << "Failed to remove old DB file";
+    }
 
-    if(!db.open())
-    {
+    // Update path and reopen
+    m_dbPath = newPath;
+
+    // Update settings
+    QSettings settings("MyCompany", "InventoryApp");
+    settings.setValue("dbPath", newFolder);
+
+    if (!openDatabase()) {
         qDebug() << "Failed to open DB at new path.";
         return false;
     }

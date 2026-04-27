@@ -17,36 +17,36 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(SQLITE3 REQUIRED sqlite3)
 
 # Generate embedded SQL header
-set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../../app/sql/Schema.sql")
-set(DBSQL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/../../app/sql/Accessors.sql;${CMAKE_CURRENT_SOURCE_DIR}/../../app/sql/Transaction.sql")
+set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Schema.sql")
+set(DBSQL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Accessors.sql;${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Transaction.sql")
 set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedSQLCode.hpp")
-include(${CMAKE_CURRENT_SOURCE_DIR}/../../app/cmake/EmbedSQL.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/app/cmake/EmbedSQL.cmake)
 
 # Add binary directory to include path for generated header
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(../../app/include)
+include_directories(app/include)
 include_directories(${SQLITE3_INCLUDE_DIRS})
 
 set(PROJECT_SOURCES
-        main.cpp
-        mainwindow.cpp
-        mainwindow.h
-        mainwindow.ui
+        UI/Electronics_Inventory_User_Interface/main.cpp
+        UI/Electronics_Inventory_User_Interface/mainwindow.cpp
+        UI/Electronics_Inventory_User_Interface/mainwindow.h
+        UI/Electronics_Inventory_User_Interface/mainwindow.ui
 )
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(Electronics_Inventory_User_Interface
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
-        add_item_dialog.h add_item_dialog.cpp add_item_dialog.ui
-        view_item_dialog.h view_item_dialog.cpp view_item_dialog.ui
-        database.h database.cpp
-        edit_item_dialog.h edit_item_dialog.cpp edit_item_dialog.ui
-        settings.h settings.cpp settings.ui
+        UI/Electronics_Inventory_User_Interface/add_item_dialog.h UI/Electronics_Inventory_User_Interface/add_item_dialog.cpp UI/Electronics_Inventory_User_Interface/add_item_dialog.ui
+        UI/Electronics_Inventory_User_Interface/view_item_dialog.h UI/Electronics_Inventory_User_Interface/view_item_dialog.cpp UI/Electronics_Inventory_User_Interface/view_item_dialog.ui
+        UI/Electronics_Inventory_User_Interface/database.h UI/Electronics_Inventory_User_Interface/database.cpp
+        UI/Electronics_Inventory_User_Interface/edit_item_dialog.h UI/Electronics_Inventory_User_Interface/edit_item_dialog.cpp UI/Electronics_Inventory_User_Interface/edit_item_dialog.ui
+        UI/Electronics_Inventory_User_Interface/settings.h UI/Electronics_Inventory_User_Interface/settings.cpp UI/Electronics_Inventory_User_Interface/settings.ui
         # Backend sources
-        ../../app/src/database/SQLiteDatabase.cpp
-        ../../app/src/database/MassQueryConfig.cpp
-        ../../app/src/electronics_manager.cpp
+        app/src/database/SQLiteDatabase.cpp
+        app/src/database/MassQueryConfig.cpp
+        app/src/electronics_manager.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET Electronics_Inventory_User_Interface APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
