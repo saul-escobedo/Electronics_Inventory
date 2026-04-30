@@ -92,12 +92,35 @@ This project is organized into predefined directories for different types of fil
 The primary codebase of the applicaiton resides in the `app` directory. Inside the `app` directory:
 * `.hpp` header files go into the `include` directory.
 * `.cpp` source files go into the `src` directory.
+* `.sql` SQL source code go into the `sql` directory.
+* `.ui` Qt layout files go into the `layout` directory.
+* `.cmake` script files go into the `cmake` directory.
+* Any test suites (usually `.cpp` files) go into the `tests`
+* Resides a `CMakeLists.txt` file that is configured for building the application's implmentation.
 
 The application's assets such as images, fonts, sounds, or "asset-like" binaries go into `assets`.
 
-The root directory of this repository contains the `CMakeLists.txt` file, `.gitignore`, and any other configuration files.
+The root directory of this repository contains the root `CMakeLists.txt` file (that builds the application's executable), `.gitignore`, and any other configuration files.
 
-As the project grows, more directories and further details will be added.
+The `scripts` directory contains python scripts that are external data importers to facilitate data entry using online electronic distributors. It will reside in the root directory for now until Python is properly integrated into the application.
+
+## Testing
+
+This project uses backend code that was developed with test driven development using the [GoogleTest](https://github.com/google/googletest) framework. This allows us to quickly iterate development for the backend without having to manually test all of its functionality ourselves, and it also ensures that any changes to it does not sneakily mess up other features.
+
+To perform testing, you'd first do similar steps as from the [build instructions](#build-instructions) until you reach the `cmake --build . --target ecim` step.
+
+Instead of targeting the application, you'd target `ecim_tests`:
+
+```bash
+cmake --build . --target ecim_tests
+```
+
+Then you'd run the testing executable:
+
+```bash
+app/ecim_tests
+```
 
 ## Licenses
 
