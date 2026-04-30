@@ -33,7 +33,7 @@ if(NOT TARGET SQLite3::SQLite3) # CMake < 4.3
 endif()
 
 # ----- EndDependencies -----
-#
+
 
 # Source files must be explicitly added because globbing files could
 # unintentionally include wrong or temporary CPP files. It also makes
