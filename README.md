@@ -7,6 +7,7 @@
 * [Description](#description)
 * [Build Instructions](#build-instructions)
 * [Project Structure](#project-structure)
+* [Testing](#testing)
 * [Licenses](#licenses)
 
 ## Description
