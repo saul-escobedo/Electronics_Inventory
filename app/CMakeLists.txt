@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(ecim_impl)
 
+set(PYBIND11_FINDPYTHON NEW)
 
 # ----- Dependencies -----
 
@@ -39,16 +40,46 @@ endif()
 # reviewing new source files easier since adding sources will be
 # more intentional.
 set(APP_SOURCES
-	src/Application.cpp
 	src/electronics_manager.cpp
-	src/settings/Settings.cpp
 
     src/database/MassQueryConfig.cpp
     src/database/SQLiteDatabase.cpp
+
+	src/settings/Settings.cpp
+
+	# ----- UI Sources -----
+
+	include/ui/MainWindow.hpp
+	include/ui/AddItemDialog.hpp
+	include/ui/EditItemDialog.hpp
+	include/ui/ViewItemDialog.hpp
+	include/ui/Settings.hpp
+
+	src/ui/Database.cpp
+	src/ui/MainWindow.cpp
+	src/ui/AddItemDialog.cpp
+	src/ui/EditItemDialog.cpp
+	src/ui/ViewItemDialog.cpp
+	src/ui/Settings.cpp
+
+	layout/MainWindow.ui
+	layout/AddItemDialog.ui
+	layout/EditItemDialog.ui
+	layout/ViewItemDialog.ui
+	layout/Settings.ui
 )
 
 # Build implementation as an OBJECT library
 add_library(${PROJECT_NAME} OBJECT ${APP_SOURCES})
+
+set_target_properties(${PROJECT_NAME} PROPERTIES
+    # Allow CMake to automatically generate headers files from *.ui layout files
+    AUTOUIC ON
+    AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/layout"
+
+    # Allow CMake to generate Qt signal implementations
+    AUTOMOC ON
+)
 
 # All header files will be localized in the 'include' directory
 target_include_directories(${PROJECT_NAME} PUBLIC include)
@@ -70,19 +101,7 @@ set(DBSQL_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/sql/Accessors.sql"
     "${CMAKE_CURRENT_SOURCE_DIR}/sql/Transaction.sql"
 )
-set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_SOURCE_DIR}/include/database/EmbeddedSQLCode.hpp")
-add_custom_command(
-    OUTPUT ${DBSQL_OUTPUT_HPP}
-    COMMAND ${CMAKE_COMMAND}
-        -D DBSQL_SCHEMA_SRC=${DBSQL_SCHEMA_SRC}
-        -D DBSQL_SRCS="${DBSQL_SRCS}"
-        -D DBSQL_OUTPUT_HPP=${DBSQL_OUTPUT_HPP}
-        -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/EmbedSQL.cmake"
-    DEPENDS ${DBSQL_SCHEMA_SRC} ${DBSQL_SRCS}
-    COMMENT "Generating embedded SQL code into a header file"
-)
-add_custom_target(embed_sql ALL DEPENDS ${DBSQL_OUTPUT_HPP})
-add_dependencies(${PROJECT_NAME} embed_sql)
+include(cmake/EmbedSQL.cmake)
 
 # testing section, be careful
 option(ENABLE_TESTING "Enable building tests" ON)

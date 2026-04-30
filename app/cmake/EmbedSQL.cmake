@@ -9,6 +9,9 @@
 
 cmake_minimum_required(VERSION 3.10)
 
+set(DBSQL_OUTPUT_HPP_DIR "${CMAKE_CURRENT_BINARY_DIR}/embedded_sql")
+set(DBSQL_OUTPUT_HPP "${DBSQL_OUTPUT_HPP_DIR}/EmbeddedSQLCode.hpp")
+
 # Function to convert variable names from PascalCase or camelCase to UPPER_SNAKE_CASE
 function(convert_to_upper_snake_case input_name output_variable)
     # Use the provided regex to find all words in the name
@@ -86,3 +89,5 @@ string(APPEND HEADER_CONTENT "}\n")
 # Write the header file
 file(WRITE "${DBSQL_OUTPUT_HPP}" "${HEADER_CONTENT}")
 message(STATUS "Generated embedded SQL header file: ${DBSQL_OUTPUT_HPP}")
+
+target_include_directories(${PROJECT_NAME} PUBLIC ${DBSQL_OUTPUT_HPP_DIR})
