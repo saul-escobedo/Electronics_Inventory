@@ -1,9 +1,11 @@
-#include "edit_item_dialog.h"
-#include "ui_edit_item_dialog.h"
+#include "ui/EditItemDialog.hpp"
+#include "ui_EditItemDialog.h"
 
-Edit_Item_Dialog::Edit_Item_Dialog(QWidget *parent)
+#include <QPushButton>
+
+EditItemDialog::EditItemDialog(QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::Edit_Item_Dialog)
+    , ui(new Ui::EditItemDialog)
 {
     ui->setupUi(this);
 
@@ -13,13 +15,13 @@ Edit_Item_Dialog::Edit_Item_Dialog(QWidget *parent)
     });
 }
 
-Edit_Item_Dialog::~Edit_Item_Dialog()
+EditItemDialog::~EditItemDialog()
 {
     delete ui;
 }
 
 
-void Edit_Item_Dialog::setItemData(const QString &name,
+void EditItemDialog::setItemData(const QString &name,
                                    int quantity,
                                    int partNumber,
                                    const QString &imagePath)
@@ -35,22 +37,22 @@ void Edit_Item_Dialog::setItemData(const QString &name,
     ui->image_label->setPixmap(pix.scaled(100,100, Qt::KeepAspectRatio));
 }
 
-QString Edit_Item_Dialog::getName() const
+QString EditItemDialog::getName() const
 {
     return ui->name_line_edit->text();
 }
 
-int Edit_Item_Dialog::getQuantity() const
+int EditItemDialog::getQuantity() const
 {
     return ui->quantity_spin_box->value();
 }
 
-int Edit_Item_Dialog::getPartNumber() const
+int EditItemDialog::getPartNumber() const
 {
     return ui->part_number_line_edit->text().toInt();
 }
 
-QString Edit_Item_Dialog::getImagePath() const
+QString EditItemDialog::getImagePath() const
 {
     return imagePath;
 }

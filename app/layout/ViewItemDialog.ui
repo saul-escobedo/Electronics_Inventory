@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>Edit_Item_Dialog</class>
- <widget class="QDialog" name="Edit_Item_Dialog">
+ <class>ViewItemDialog</class>
+ <widget class="QDialog" name="View_Item_Dialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>500</width>
-    <height>368</height>
+    <width>489</width>
+    <height>452</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -17,7 +17,7 @@
    <property name="geometry">
     <rect>
      <x>130</x>
-     <y>320</y>
+     <y>400</y>
      <width>341</width>
      <height>32</height>
     </rect>
@@ -29,42 +29,12 @@
     <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
    </property>
   </widget>
-  <widget class="QLineEdit" name="name_line_edit">
+  <widget class="QLabel" name="Image_Label">
    <property name="geometry">
     <rect>
-     <x>340</x>
-     <y>40</y>
-     <width>113</width>
-     <height>25</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLineEdit" name="part_number_line_edit">
-   <property name="geometry">
-    <rect>
-     <x>340</x>
-     <y>90</y>
-     <width>113</width>
-     <height>25</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QSpinBox" name="quantity_spin_box">
-   <property name="geometry">
-    <rect>
-     <x>370</x>
-     <y>140</y>
-     <width>47</width>
-     <height>26</height>
-    </rect>
-   </property>
-  </widget>
-  <widget class="QLabel" name="image_label">
-   <property name="geometry">
-    <rect>
-     <x>30</x>
+     <x>20</x>
      <y>20</y>
-     <width>141</width>
+     <width>121</width>
      <height>111</height>
     </rect>
    </property>
@@ -72,30 +42,82 @@
     <string>TextLabel</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="select_image_button">
+  <widget class="QLabel" name="Name_Label">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>130</y>
-     <width>92</width>
-     <height>26</height>
+     <x>310</x>
+     <y>50</y>
+     <width>58</width>
+     <height>18</height>
     </rect>
    </property>
    <property name="text">
-    <string>PushButton</string>
+    <string>TextLabel</string>
    </property>
   </widget>
-  <widget class="QPushButton" name="delete_button">
+  <widget class="QLabel" name="Part_Number_Label">
    <property name="geometry">
     <rect>
-     <x>40</x>
-     <y>310</y>
-     <width>92</width>
-     <height>26</height>
+     <x>310</x>
+     <y>80</y>
+     <width>58</width>
+     <height>18</height>
     </rect>
    </property>
    <property name="text">
-    <string>Delete Item</string>
+    <string>TextLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="Quantity_Label">
+   <property name="geometry">
+    <rect>
+     <x>310</x>
+     <y>130</y>
+     <width>58</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>TextLabel</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="name">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>40</y>
+     <width>58</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Name:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="part_number">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>80</y>
+     <width>91</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Part Number:</string>
+   </property>
+  </widget>
+  <widget class="QLabel" name="quantity">
+   <property name="geometry">
+    <rect>
+     <x>210</x>
+     <y>130</y>
+     <width>58</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Quantity:</string>
    </property>
   </widget>
  </widget>
@@ -104,7 +126,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>Edit_Item_Dialog</receiver>
+   <receiver>View_Item_Dialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -120,7 +142,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>Edit_Item_Dialog</receiver>
+   <receiver>View_Item_Dialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

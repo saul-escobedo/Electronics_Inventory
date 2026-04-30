@@ -7,9 +7,9 @@ using std::string, std::invalid_argument;
 
 namespace ecim {
 	struct ElectronicRating {
-        double voltage;
-        double current;
-        double power;
+        double voltage = 0;
+        double current = 0;
+        double power = 0;
 
         bool valid() const {
             return voltage >= 0

@@ -1,23 +1,24 @@
-#include "view_item_dialog.h"
-#include "ui_view_item_dialog.h"
+#include "ui/ViewItemDialog.hpp"
+#include "ui_ViewItemDialog.h"
+
 #include <QPixmap>
 
-View_Item_Dialog::View_Item_Dialog(QWidget *parent)
+ViewItemDialog::ViewItemDialog(QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::View_Item_Dialog)
+    , ui(new Ui::ViewItemDialog)
 {
     ui->setupUi(this);
 
 }
 
-View_Item_Dialog::~View_Item_Dialog()
+ViewItemDialog::~ViewItemDialog()
 {
     delete ui;
 }
 
 //Definition of Set Item Data
 //This will fill in all the data from the table.
-void View_Item_Dialog::Set_Item_Data(const QString &name,
+void ViewItemDialog::Set_Item_Data(const QString &name,
                                      int quantity,
                                      int part_number,
                                      const QString &image_path)

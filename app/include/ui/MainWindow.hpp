@@ -1,9 +1,10 @@
-#ifndef MAINWINDOW_H
-#define MAINWINDOW_H
+#ifndef MAINWINDOW_HPP
+#define MAINWINDOW_HPP
+
+#include "Database.hpp"
 
 #include <QMainWindow>
 #include <QTimer>   //Used to be able to use time for the automatic backups.
-#include "database.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui {
@@ -31,12 +32,12 @@ private:
     //All functions for Dashboard are init here.
 
     //This is for updating the total parts in stock from Dashboard.
-    int total_parts;
-    void update_total_parts_label();
-    void on_search_text_changed(const QString &text);
-    void on_search_enter_pressed();
-    void add_item(const QString &name, int parts, int part_num, const QString &image_path);
-    void open_item_view(int row, int column);
+    int totalParts;
+    void updateTotalPartsLabel();
+    void onSearchTextChanged(const QString &text);
+    void onSearchEnterPressed();
+    void addItem(const QString &name, int parts, int part_num, const QString &image_path);
+    void openItemView(int row, int column);
 
 };
-#endif // MAINWINDOW_H
+#endif // MAINWINDOW_HPP

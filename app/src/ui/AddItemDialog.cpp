@@ -1,11 +1,14 @@
-#include "add_item_dialog.h"
-#include "ui_add_item_dialog.h"
-#include "QFileDialog"
-#include "QPixmap"
+#include "ui/AddItemDialog.hpp"
+#include "ui_AddItemDialog.h"
 
-Add_Item_Dialog::Add_Item_Dialog(QWidget *parent)
+#include <QFileDialog>
+#include <QPixmap>
+#include <QIntValidator>
+#include <QPushButton>
+
+AddItemDialog::AddItemDialog(QWidget *parent)
     : QDialog(parent)
-    , ui(new Ui::Add_Item_Dialog)
+    , ui(new Ui::AddItemDialog)
 {
     ui->setupUi(this);
 
@@ -35,27 +38,27 @@ Add_Item_Dialog::Add_Item_Dialog(QWidget *parent)
     });
 }
 
-Add_Item_Dialog::~Add_Item_Dialog()
+AddItemDialog::~AddItemDialog()
 {
     delete ui;
 }
 
-QString Add_Item_Dialog::get_name() const
+QString AddItemDialog::getName() const
 {
     return ui->edit_name->text();
 }
 
-int Add_Item_Dialog::get_part_number() const
+int AddItemDialog::getPartNumber() const
 {
     return ui->edit_part_num->text().toInt();
 }
 
-int Add_Item_Dialog::get_quantity() const
+int AddItemDialog::getQuantity() const
 {
     return ui->edit_quantity->value();
 }
 
-QString Add_Item_Dialog::get_image_path() const
+QString AddItemDialog::getImagePath() const
 {
     return image_path;
 }

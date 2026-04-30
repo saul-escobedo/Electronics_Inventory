@@ -1,5 +1,12 @@
-#include "Application.hpp"
+#include "ui/MainWindow.hpp"
 
-int main(int argCount, char** argValues) {
-	return execECIMApplication(argCount, argValues);
+#include <QApplication>
+
+int main(int argc, char** argv) {
+    QApplication a(argc, argv);
+
+    MainWindow w;
+    w.show();
+
+    return a.exec();
 }

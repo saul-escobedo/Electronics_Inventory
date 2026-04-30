@@ -1,5 +1,5 @@
-#ifndef DATABASE_H
-#define DATABASE_H
+#ifndef DATABASE_HPP
+#define DATABASE_HPP
 
 #include <QVector>
 #include <QString>
@@ -58,7 +58,7 @@ public:
     bool updateItem(int originalPartNumber, const Item &item);
     bool deleteItem(int partNumber);
     void reopenDatabase();
-    
+
     QString getDatabasePath() const;
     bool moveDatabase(const QString &newFolder);
 
@@ -68,4 +68,4 @@ private:
     bool m_initialized;
 };
 
-#endif // DATABASE_H
+#endif // DATABASE_HPP

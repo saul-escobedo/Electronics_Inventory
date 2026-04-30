@@ -1,5 +1,5 @@
-#ifndef SETTINGS_H
-#define SETTINGS_H
+#ifndef SETTINGS_HPP
+#define SETTINGS_HPP
 
 #include <QDialog>
 
@@ -26,4 +26,4 @@ private:
     Ui::Settings *ui;
 };
 
-#endif // SETTINGS_H
+#endif // SETTINGS_HPP

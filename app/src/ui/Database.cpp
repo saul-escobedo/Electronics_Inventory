@@ -1,4 +1,5 @@
-#include "database.h"
+#include "ui/Database.hpp"
+
 #include <QDebug>
 #include <QDir>
 #include <QCoreApplication>
@@ -206,17 +207,3 @@ bool Database::moveDatabase(const QString &newFolder)
     qDebug() << "Database moved to: " << newPath;
     return true;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-

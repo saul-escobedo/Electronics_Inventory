@@ -1,8 +1,9 @@
 #include "database/SQLiteDatabase.hpp"
-#include "database/EmbeddedSQLCode.hpp"
 #include "database/MassQueryConfig.hpp"
 #include "database/exceptions/DatabaseException.hpp"
 #include "database/exceptions/Exceptions.hpp"
+
+#include "EmbeddedSQLCode.hpp"
 
 #include "electrical/ElectronicComponent.hpp"
 #include "electrical/ElectronicComponents.hpp"
