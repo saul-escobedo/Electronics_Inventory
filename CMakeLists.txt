@@ -1,96 +1,44 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.20)
 
-project(Electronics_Inventory_User_Interface VERSION 0.1 LANGUAGES CXX)
+# Project Name & executable name
+project(ecim VERSION 1.0.0 LANGUAGES CXX)
 
-set(CMAKE_AUTOUIC ON)
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
-
+# Set C++ standard and compiler flags
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
-find_package(QT NAMES Qt6 Qt5 REQUIRED COMPONENTS Widgets)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Sql)
+# may give issues if Linux [START]
+if(MSVC)
+    # Qt6 requires strict conformance mode and correct __cplusplus value on MSVC.
+    # /FS forces synchronous PDB writes to avoid C1041 races during parallel builds.
+    add_compile_options(/Zc:__cplusplus /permissive- /FS)
+endif()
+# may give issues if Linux [END]
 
-# Find sqlite3
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(SQLITE3 REQUIRED sqlite3)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Generate embedded SQL header
-set(DBSQL_SCHEMA_SRC "${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Schema.sql")
-set(DBSQL_SRCS "${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Accessors.sql;${CMAKE_CURRENT_SOURCE_DIR}/app/sql/Transaction.sql")
-set(DBSQL_OUTPUT_HPP "${CMAKE_CURRENT_BINARY_DIR}/EmbeddedSQLCode.hpp")
-include(${CMAKE_CURRENT_SOURCE_DIR}/app/cmake/EmbedSQL.cmake)
+# Enable CTest at the root so `ctest --test-dir build` works
+include(CTest)
+enable_testing()
 
-# Add binary directory to include path for generated header
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
-include_directories(app/include)
-include_directories(${SQLITE3_INCLUDE_DIRS})
+# Include the app implementation subdirectory
+add_subdirectory(app)
 
-set(PROJECT_SOURCES
-        UI/Electronics_Inventory_User_Interface/main.cpp
-        UI/Electronics_Inventory_User_Interface/mainwindow.cpp
-        UI/Electronics_Inventory_User_Interface/mainwindow.h
-        UI/Electronics_Inventory_User_Interface/mainwindow.ui
-)
+# Create executable from app implementation
+add_executable(${PROJECT_NAME} app/src/main.cpp)
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
-    qt_add_executable(Electronics_Inventory_User_Interface
-        MANUAL_FINALIZATION
-        ${PROJECT_SOURCES}
-        UI/Electronics_Inventory_User_Interface/add_item_dialog.h UI/Electronics_Inventory_User_Interface/add_item_dialog.cpp UI/Electronics_Inventory_User_Interface/add_item_dialog.ui
-        UI/Electronics_Inventory_User_Interface/view_item_dialog.h UI/Electronics_Inventory_User_Interface/view_item_dialog.cpp UI/Electronics_Inventory_User_Interface/view_item_dialog.ui
-        UI/Electronics_Inventory_User_Interface/database.h UI/Electronics_Inventory_User_Interface/database.cpp
-        UI/Electronics_Inventory_User_Interface/edit_item_dialog.h UI/Electronics_Inventory_User_Interface/edit_item_dialog.cpp UI/Electronics_Inventory_User_Interface/edit_item_dialog.ui
-        UI/Electronics_Inventory_User_Interface/settings.h UI/Electronics_Inventory_User_Interface/settings.cpp UI/Electronics_Inventory_User_Interface/settings.ui
-        # Backend sources
-        app/src/database/SQLiteDatabase.cpp
-        app/src/database/MassQueryConfig.cpp
-        app/src/electronics_manager.cpp
-    )
-# Define target properties for Android with Qt 6 as:
-#    set_property(TARGET Electronics_Inventory_User_Interface APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
-#                 ${CMAKE_CURRENT_SOURCE_DIR}/android)
-# For more information, see https://doc.qt.io/qt-6/qt-add-executable.html#target-creation
-else()
-    if(ANDROID)
-        add_library(Electronics_Inventory_User_Interface SHARED
-            ${PROJECT_SOURCES}
-        )
-# Define properties for Android with Qt 5 after find_package() calls as:
-#    set(ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android")
-    else()
-        add_executable(Electronics_Inventory_User_Interface
-            ${PROJECT_SOURCES}
-        )
-    endif()
+# Link libraries and include directories
+target_link_libraries(${PROJECT_NAME} PRIVATE ecim_impl)
+
+# Generate compile commands because some IDEs use clangd language servers
+# for auto-complete and code suggestions
+if (PROJECT_IS_TOP_LEVEL AND UNIX)
+	execute_process(
+    	COMMAND ${CMAKE_COMMAND} -E create_symlink
+    	${CMAKE_BINARY_DIR}/compile_commands.json
+    	${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json
+	)
 endif()
 
-target_link_libraries(Electronics_Inventory_User_Interface PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
-                    Qt${QT_VERSION_MAJOR}::Sql
-                    sqlite3)
-
-# Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
-# If you are developing for iOS or macOS you should consider setting an
-# explicit, fixed bundle identifier manually though.
-if(${QT_VERSION} VERSION_LESS 6.1.0)
-  set(BUNDLE_ID_OPTION MACOSX_BUNDLE_GUI_IDENTIFIER com.example.Electronics_Inventory_User_Interface)
-endif()
-set_target_properties(Electronics_Inventory_User_Interface PROPERTIES
-    ${BUNDLE_ID_OPTION}
-    MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
-    MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
-    MACOSX_BUNDLE TRUE
-    WIN32_EXECUTABLE TRUE
-)
-
-include(GNUInstallDirs)
-install(TARGETS Electronics_Inventory_User_Interface
-    BUNDLE DESTINATION .
-    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-)
-
-if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(Electronics_Inventory_User_Interface)
-endif()
+message(STATUS "Configured ${PROJECT_NAME} (v${PROJECT_VERSION})")
