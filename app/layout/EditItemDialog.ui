@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>EditItemDialog</class>
- <widget class="QDialog" name="Edit_Item_Dialog">
+ <widget class="QDialog" name="EditItemDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -22,11 +22,8 @@
      <height>32</height>
     </rect>
    </property>
-   <property name="orientation">
-    <enum>Qt::Orientation::Horizontal</enum>
-   </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
+    <set>QDialogButtonBox::NoButton</set>
    </property>
   </widget>
   <widget class="QLineEdit" name="name_line_edit">
@@ -104,7 +101,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>Edit_Item_Dialog</receiver>
+   <receiver>EditItemDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -120,7 +117,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>Edit_Item_Dialog</receiver>
+   <receiver>EditItemDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

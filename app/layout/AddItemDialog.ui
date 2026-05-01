@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>AddItemDialog</class>
- <widget class="QDialog" name="Add_Item_Dialog">
+ <widget class="QDialog" name="AddItemDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -21,9 +21,6 @@
      <width>341</width>
      <height>32</height>
     </rect>
-   </property>
-   <property name="orientation">
-    <enum>Qt::Orientation::Horizontal</enum>
    </property>
    <property name="standardButtons">
     <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
@@ -143,7 +140,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>Add_Item_Dialog</receiver>
+   <receiver>AddItemDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -159,7 +156,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>Add_Item_Dialog</receiver>
+   <receiver>AddItemDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

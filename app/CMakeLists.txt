@@ -67,6 +67,9 @@ set(APP_SOURCES
 	layout/EditItemDialog.ui
 	layout/ViewItemDialog.ui
 	layout/Settings.ui
+
+	# Assets
+	../assets/assets.qrc
 )
 
 # Build implementation as an OBJECT library
@@ -76,6 +79,9 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
     # Allow CMake to automatically generate headers files from *.ui layout files
     AUTOUIC ON
     AUTOUIC_SEARCH_PATHS "${CMAKE_CURRENT_SOURCE_DIR}/layout"
+
+    # Allow CMake to find and include assets into executable
+    AUTORCC ON
 
     # Allow CMake to generate Qt signal implementations
     AUTOMOC ON
@@ -102,6 +108,9 @@ set(DBSQL_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/sql/Transaction.sql"
 )
 include(cmake/EmbedSQL.cmake)
+
+# Embed platform specific icons into the executable
+include(cmake/EmbedIcons.cmake)
 
 # testing section, be careful
 option(ENABLE_TESTING "Enable building tests" ON)
