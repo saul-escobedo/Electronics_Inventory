@@ -6,6 +6,8 @@
 #include "ui/EditItemDialog.hpp"
 #include "ui/Settings.hpp"
 
+#include "Config.hpp"
+
 #include <QMessageBox>
 #include <QSettings>
 #include <QDir>
@@ -15,13 +17,11 @@ MainWindow::MainWindow(QWidget *parent)
     , ui(new Ui::MainWindow)
 {
     //Every new function init goes AFTER setupUi.
-
     ui->setupUi(this);
 
     if(!dbManager.openDatabase())
-    {
         qDebug() << "Database failed to open";
-    } else
+    else
         qDebug() << "Database opened successfully";
 
     dbManager.createTable();
@@ -45,6 +45,9 @@ MainWindow::MainWindow(QWidget *parent)
     ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
     ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
     ui->Inventory_Table->setSortingEnabled(true);
+
+    ui->versionLabel->setText(QString("Version v" ECIM_VERSION));
+    ui->buildLabel->setText(QString("Build " ECIM_BRANCH " (" ECIM_BUILD ")"));
 
     // Load items into the table
     QVector<Item> items = dbManager.getAllItems();

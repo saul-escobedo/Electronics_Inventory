@@ -112,6 +112,9 @@ include(cmake/EmbedSQL.cmake)
 # Embed platform specific icons into the executable
 include(cmake/EmbedIcons.cmake)
 
+# Write a config header file containing the project's build metadata
+include(cmake/CreateConfig.cmake)
+
 # testing section, be careful
 option(ENABLE_TESTING "Enable building tests" ON)
 
