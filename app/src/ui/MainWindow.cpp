@@ -1,4 +1,10 @@
 #include "ui/MainWindow.hpp"
+#include "database/MassQueryConfig.hpp"
+#include "electrical/BJTransistor.hpp"
+#include "electrical/ElectronicComponent.hpp"
+#include "electrical/FETransistor.hpp"
+#include "electrical/Inductor.hpp"
+#include "electrical/IntegratedCircuit.hpp"
 #include "ui_MainWindow.h"
 
 #include "ui/AddItemDialog.hpp"
@@ -11,153 +17,49 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QDir>
+#include <qmainwindow.h>
+#include <qnamespace.h>
+#include <qtablewidget.h>
+#include <qvariant.h>
+#include <qwidget.h>
+
+using namespace ecim;
+
+static const char* s_componentTypeAsString(ElectronicComponent::Type type);
+static const char* s_capacitorTypeAsString(Capacitor::Type type);
+static const char* s_diodeTypeAsString(Diode::Type type);
+static std::string s_toStandardUnits(double value, const char* unitSuffix);
+static QTableWidgetItem* s_newTableItemi(int);
+static QTableWidgetItem* s_newTableItemd(double);
+static QTableWidgetItem* s_newTableItem(const std::string&);
+static QTableWidgetItem* s_newTableItem(const char*);
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
+    , m_ui(new Ui::MainWindow)
 {
     //Every new function init goes AFTER setupUi.
-    ui->setupUi(this);
+    m_ui->setupUi(this);
 
-    if(!dbManager.openDatabase())
+    if(!m_dbManager.openDatabase())
         qDebug() << "Database failed to open";
     else
         qDebug() << "Database opened successfully";
 
-    dbManager.createTable();
-
-    updateTotalPartsLabel();
-
-    connect(ui->Search_Bar, &QLineEdit::textChanged,
+    connect(m_ui->searchBar, &QLineEdit::textChanged,
             this, &MainWindow::onSearchTextChanged);
-    connect(ui->Search_Bar, &QLineEdit::returnPressed,
+    connect(m_ui->searchBar, &QLineEdit::returnPressed,
             this, &MainWindow::onSearchEnterPressed);
 
-    // Initialize the table
-    const int COL_NAME = 0;
-    const int COL_QUANTITY = 1;
-    const int COL_PART = 2;
+    m_ui->itemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    m_ui->itemsTable->verticalHeader()->setVisible(false);
+    m_ui->itemsTable->setSortingEnabled(true);
+    setupTableColumns();
 
-    ui->Inventory_Table->setColumnCount(3);
-    QStringList headers;
-    headers << "Item Name" << "Parts in Stock" << "Part Number";
-    ui->Inventory_Table->setHorizontalHeaderLabels(headers);
-    ui->Inventory_Table->horizontalHeader()->setStretchLastSection(true);
-    ui->Inventory_Table->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    ui->Inventory_Table->setSortingEnabled(true);
+    connect(m_ui->catalogType, &QComboBox::currentIndexChanged, this, &MainWindow::onChangeCatalog);
 
-    ui->versionLabel->setText(QString("Version v" ECIM_VERSION));
-    ui->buildLabel->setText(QString("Build " ECIM_BRANCH " (" ECIM_BUILD ")"));
-
-    // Load items into the table
-    QVector<Item> items = dbManager.getAllItems();
-
-    for(const Item &item : items)
-    {
-        addItem(item.name, item.quantity, item.partNumber, item.imagePath);
-    }
-    updateTotalPartsLabel();
-
-    // Add Item button
-    connect(ui->Add_Item, &QPushButton::clicked, this, [this]()
-    {
-        AddItemDialog dialog(this);
-        if(dialog.exec() == QDialog::Accepted)
-        {
-            Item item;
-            item.name = dialog.getName();
-            item.quantity = dialog.getQuantity();
-            item.partNumber = dialog.getPartNumber();
-            item.imagePath = dialog.getImagePath();
-
-            addItem(item.name, item.quantity, item.partNumber, item.imagePath);
-            dbManager.addItem(item);
-
-            updateTotalPartsLabel();
-        }
-    });
-
-    // Double-click to view item
-    connect(ui->Inventory_Table,
-            &QTableWidget::cellDoubleClicked,
-            this,
-            &MainWindow::openItemView);
-
-
-    connect(ui->Edit_Item, &QPushButton::clicked, this, [this] ()
-    {
-        int row = ui->Inventory_Table->currentRow();
-
-        if(row < 0) {
-            QMessageBox::warning(this, "Error", "Select an item first");
-            return;
-        }
-
-        QTableWidgetItem *name_item = ui->Inventory_Table->item(row, 0);
-
-        QString name = name_item->text();
-        int quantity = ui->Inventory_Table->item(row,1)->text().toInt();
-        int partNumber = ui->Inventory_Table->item(row,2)->text().toInt();
-        QString imagePath = name_item->data(Qt::UserRole).toString();
-
-        EditItemDialog dialog(this);
-        dialog.setItemData(name, quantity, partNumber, imagePath);
-
-        // Handle Delete
-        connect(&dialog, &EditItemDialog::deleteRequested, this, [=](int partNum){
-            dbManager.deleteItem(partNum);
-            ui->Inventory_Table->removeRow(row);
-            updateTotalPartsLabel();
-        });
-
-        // Handle Update
-        if(dialog.exec() == QDialog::Accepted)
-        {
-            Item item;
-            item.name = dialog.getName();
-            item.quantity = dialog.getQuantity();
-            item.partNumber = dialog.getPartNumber();
-            item.imagePath = dialog.getImagePath();
-
-            dbManager.updateItem(partNumber, item);
-
-            // Update UI
-            ui->Inventory_Table->item(row, 0)->setText(item.name);
-            ui->Inventory_Table->item(row, 1)->setText(QString::number(item.quantity));
-            ui->Inventory_Table->item(row, 2)->setText(QString::number(item.partNumber));
-            ui->Inventory_Table->item(row, 0)->setData(Qt::UserRole, item.imagePath);
-            updateTotalPartsLabel();
-        }
-
-    });
-
-    connect(ui->Settings_Button, &QPushButton::clicked, this, [this]() {
-        Settings dialog(this);
-
-        connect(&dialog, &Settings::settingsChanged,
-                this, [this]()
-                {
-            QSettings settings("MyCompany", "InventoryApp");
-            QString newFolder = settings.value("dbPath").toString();
-
-            if(!dbManager.moveDatabase(newFolder))
-            {
-                QMessageBox::warning(this, "Error", "Failed to move database.");
-                return;
-            }
-
-            ui->Inventory_Table->setRowCount(0);
-            QVector<Item> items = dbManager.getAllItems();
-            for(const Item &item : items)
-            {
-                addItem(item.name, item.quantity, item.partNumber, item.imagePath);
-            }
-            updateTotalPartsLabel();
-        });
-
-        startBackupTimer();
-        dialog.exec();
-    });
+    m_ui->versionLabel->setText(QString("Version v" ECIM_VERSION));
+    m_ui->buildLabel->setText(QString("Build " ECIM_BRANCH " (" ECIM_BUILD ")"));
 
     // Setup backup timer
     backupTimer = new QTimer(this);
@@ -166,87 +68,16 @@ MainWindow::MainWindow(QWidget *parent)
 
 }
 
-void MainWindow::updateTotalPartsLabel()
-{
-    int total = 0;
-    int rows = ui->Inventory_Table->rowCount();
-    for(int i = 0; i < rows; i++)
-    {
-        int quantity = ui->Inventory_Table->item(i, 1)->text().toInt();
-        total += quantity;
-    }
-
-    totalParts = total;
-
-    ui->Total_Parts->setText(
-        QString("Total parts: %1").arg(totalParts));
+MainWindow::~MainWindow() {
+    delete m_ui;
 }
 
-void MainWindow::onSearchTextChanged(const QString &text)
-{
-    if (text.isEmpty()) {
-        // Show all items when search is empty
-        for (int i = 0; i < ui->Inventory_Table->rowCount(); ++i) {
-            ui->Inventory_Table->setRowHidden(i, false);
-        }
-        return;
-    }
-
-    // Hide rows that don't match the search text
-    for (int i = 0; i < ui->Inventory_Table->rowCount(); ++i) {
-        QTableWidgetItem *nameItem = ui->Inventory_Table->item(i, 0);
-        QTableWidgetItem *partItem = ui->Inventory_Table->item(i, 2);
-
-        bool nameMatch = nameItem && nameItem->text().contains(text, Qt::CaseInsensitive);
-        bool partMatch = partItem && partItem->text().contains(text, Qt::CaseInsensitive);
-
-        ui->Inventory_Table->setRowHidden(i, !(nameMatch || partMatch));
-    }
+void MainWindow::updateTotalPartsLabel(int num) {
+    m_ui->totalParts->setText(
+        QString("Total parts: %1").arg(num));
 }
 
-void MainWindow::onSearchEnterPressed()
-{
-    // Search is already handled in on_search_text_changed
-    // This function can be used for additional actions if needed
-}
-
-void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path)
-{
-    int row = ui->Inventory_Table->rowCount();
-    ui->Inventory_Table->insertRow(row);
-
-    QTableWidgetItem *name_item = new QTableWidgetItem(name);
-    QTableWidgetItem *quantity_item = new QTableWidgetItem();
-    quantity_item->setData(Qt::DisplayRole, quantity);
-    QTableWidgetItem *part_item = new QTableWidgetItem();
-    part_item->setData(Qt::DisplayRole, part_num);
-
-    // Store image path as hidden data
-    name_item->setData(Qt::UserRole, image_path);
-
-    ui->Inventory_Table->setItem(row, 0, name_item);
-    ui->Inventory_Table->setItem(row, 1, quantity_item);
-    ui->Inventory_Table->setItem(row, 2, part_item);
-}
-
-void MainWindow::openItemView(int row, int column)
-{
-    Q_UNUSED(column);
-
-    QTableWidgetItem *name_item = ui->Inventory_Table->item(row, 0);
-
-    QString name = name_item->text();
-    int quantity = ui->Inventory_Table->item(row, 1)->text().toInt();
-    int part_number = ui->Inventory_Table->item(row, 2)->text().toInt();
-    QString image_path = name_item->data(Qt::UserRole).toString();
-
-    ViewItemDialog dialog(this);
-    dialog.Set_Item_Data(name, quantity, part_number, image_path);
-    dialog.exec();
-}
-
-void MainWindow::startBackupTimer()
-{
+void MainWindow::startBackupTimer() {
     QSettings settings("MyCompany", "InventoryApp");
 
     QString freq = settings.value("backupFrequency", "Never").toString();
@@ -282,9 +113,8 @@ void MainWindow::startBackupTimer()
     }
 }
 
-void MainWindow::performBackup()
-{
-    QString dbPath = dbManager.getDatabasePath();
+void MainWindow::performBackup() {
+    QString dbPath = m_dbManager.getDatabasePath();
 
     QString backupFolder = QDir::homePath() + "/InventoryBackups";
     QDir().mkpath(backupFolder);
@@ -295,16 +125,341 @@ void MainWindow::performBackup()
     QString backupPath = backupFolder + "/backup_" + timestamp + ".db";
 
     if(QFile::copy(dbPath, backupPath))
-    {
         qDebug() << "Backup created:" << backupPath;
-    }
     else
-    {
         qDebug() << "Backup failed";
+}
+
+void MainWindow::setupTableColumns() {
+    QStringList headers;
+
+    if(!m_catalogType.has_value()) {
+        headers << "ID" << "Type" << "Name" << "Manufacturer" << "Part Number" << "Qty";
+        m_ui->itemsTable->setColumnCount(6);
+        m_ui->itemsTable->setHorizontalHeaderLabels(headers);
+        m_ui->itemsTable->setColumnWidth(0, 20);
+
+        m_columnPorportionalWidths[0] = 0.5f / 6;
+        for(int i = 1; i < 5; i++)
+            m_columnPorportionalWidths[i] = (1.0f - m_columnPorportionalWidths[0] * 2) / 4;
+        m_columnPorportionalWidths[5] = m_columnPorportionalWidths[0];
+
+        return;
+    }
+
+    int numColumns = 4;
+    headers << "ID" << "Manufacturer" << "Part Number";
+
+    switch(m_catalogType.value()) {
+    case ElectronicComponent::Type::Resistor:
+        headers << "Resistance";
+        numColumns++;
+        break;
+    case ElectronicComponent::Type::Capacitor:
+        headers << "Type" << "Capacitance";
+        numColumns += 2;
+        break;
+    case ElectronicComponent::Type::Inductor:
+        headers << "Inductance";
+        numColumns++;
+        break;
+    case ElectronicComponent::Type::Diode:
+        headers << "Type" << "Forward Voltage";
+        numColumns += 2;
+        break;
+    case ElectronicComponent::Type::BJTransistor:
+        headers << "Gain hFE";
+        numColumns++;
+        break;
+    case ElectronicComponent::Type::FETransistor:
+        headers << "Threshold Voltage";
+        numColumns++;
+        break;
+    case ElectronicComponent::Type::IntegratedCircuit:
+        headers << "Pins";
+        numColumns++;
+        break;
+    }
+
+    headers << "Qty";
+
+    m_ui->itemsTable->setColumnCount(numColumns);
+    m_ui->itemsTable->setHorizontalHeaderLabels(headers);
+
+    m_columnPorportionalWidths[0] = 0.5f / numColumns;
+    for(int i = 1; i < numColumns - 1; i++)
+        m_columnPorportionalWidths[i] = (1.0f - m_columnPorportionalWidths[0] * 2) / (numColumns - 2);
+    m_columnPorportionalWidths[numColumns - 1] = m_columnPorportionalWidths[0];
+}
+
+void MainWindow::autoResizeTableColumns() {
+    int numColumns = m_ui->itemsTable->columnCount();
+    int width = m_ui->itemsTable->width();
+
+    const int MARGIN = 25;
+
+    width -= MARGIN;
+
+    for(int i = 0; i < numColumns; i++) {
+        int colWidth = m_columnPorportionalWidths[i] * width;
+        m_ui->itemsTable->setColumnWidth(i, colWidth);
     }
 }
 
-MainWindow::~MainWindow()
-{
-    delete ui;
+void MainWindow::fetchDatabase() {
+    MassQueryConfig cfg = {
+        .pagination = Pagination(),
+    };
+
+    MassQueryResult result;
+
+    if(!m_catalogType.has_value())
+        result = m_dbManager.getAllComponents(cfg);
+    else
+        result = m_dbManager.getAllComponentsByType(m_catalogType.value());
+
+    m_items = std::move(result.items);
+
+    updateTotalPartsLabel(result.totalNumItems);
+}
+
+void MainWindow::populateTable() {
+    QTableWidget* const table = m_ui->itemsTable;
+
+    table->setRowCount(0);
+
+    for(const auto& item : m_items) {
+        int row = table->rowCount();
+        int col = 0;
+
+        table->insertRow(row);
+
+        table->setItem(row, col++, s_newTableItemi(item->ID()));
+
+        if(!m_catalogType.has_value()) {
+            table->setItem(row, col++, s_newTableItem( s_componentTypeAsString(item->type()) ));
+            table->setItem(row, col++, s_newTableItem(item->name()));
+            table->setItem(row, col++, s_newTableItem(item->manufacturer()));
+            table->setItem(row, col++, s_newTableItem(item->partNumber()));
+            table->setItem(row, col++, s_newTableItemi(item->quantity()));
+            continue;
+        }
+
+        table->setItem(row, col++, s_newTableItem(item->manufacturer()));
+        table->setItem(row, col++, s_newTableItem(item->partNumber()));
+
+        switch(m_catalogType.value()) {
+        case ElectronicComponent::Type::Resistor: {
+            Resistor* r = dynamic_cast<Resistor*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(r->resistance(), "Ω")));
+            break;
+        }
+        case ElectronicComponent::Type::Capacitor: {
+            Capacitor* c = dynamic_cast<Capacitor*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_capacitorTypeAsString(c->capacitorType())));
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(c->capacitance(), "F")));
+            break;
+        }
+        case ElectronicComponent::Type::Inductor: {
+            Inductor* i = dynamic_cast<Inductor*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(i->inductance(), "H")));
+            break;
+        }
+        case ElectronicComponent::Type::Diode: {
+            Diode* d = dynamic_cast<Diode*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_diodeTypeAsString(d->diodeType())));
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(d->forwardVoltage(), "V")));
+            break;
+        }
+        case ElectronicComponent::Type::BJTransistor: {
+            BJTransistor* t = dynamic_cast<BJTransistor*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->gain(), "")));
+            break;
+        }
+        case ElectronicComponent::Type::FETransistor: {
+            FETransistor* t = dynamic_cast<FETransistor*>(item.get());
+
+            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->thresholdVoltage(), "V")));
+            break;
+        }
+        case ElectronicComponent::Type::IntegratedCircuit: {
+            IntegratedCircuit* ic = dynamic_cast<IntegratedCircuit*>(item.get());
+
+            table->setItem(row, col++, s_newTableItemi(ic->pinCount()));
+            break;
+        }
+        }
+
+        m_ui->itemsTable->setItem(row, col++, s_newTableItemi(item->quantity()));
+    }
+}
+
+void MainWindow::onSearchTextChanged(const QString &text) {
+}
+
+void MainWindow::onSearchEnterPressed() {
+}
+
+void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path) {
+}
+
+void MainWindow::openItemView(int row, int column) {
+}
+
+void MainWindow::onChangeCatalog(int selectionIndex) {
+    if(selectionIndex == 0)
+        m_catalogType = std::optional<ElectronicComponent::Type>();
+    else {
+        selectionIndex = std::min(std::max(1, selectionIndex), static_cast<int>(ElectronicComponent::Type::IntegratedCircuit));
+        m_catalogType = static_cast<ElectronicComponent::Type>(selectionIndex);
+    }
+
+    setupTableColumns();
+    autoResizeTableColumns();
+
+    fetchDatabase();
+    populateTable();
+}
+
+void MainWindow::resizeEvent(QResizeEvent* event) {
+    QMainWindow::resizeEvent(event);
+
+    autoResizeTableColumns();
+}
+
+void MainWindow::showEvent(QShowEvent* event) {
+    QMainWindow::showEvent(event);
+
+    autoResizeTableColumns();
+
+    fetchDatabase();
+    populateTable();
+}
+
+static const char* s_componentTypeAsString(ElectronicComponent::Type type) {
+    switch(type) {
+    case ElectronicComponent::Type::Resistor:
+        return "Resistor";
+    case ElectronicComponent::Type::Capacitor:
+        return "Capacitor";
+    case ElectronicComponent::Type::Inductor:
+        return "Inductor";
+    case ElectronicComponent::Type::Diode:
+        return "Diode";
+    case ElectronicComponent::Type::BJTransistor:
+        return "BJ-Transistor";
+    case ElectronicComponent::Type::FETransistor:
+        return "FE-Transistor";
+    case ElectronicComponent::Type::IntegratedCircuit:
+        return "Integrated Circuit";
+    }
+
+    return "Generic";
+}
+
+static const char* s_capacitorTypeAsString(Capacitor::Type type) {
+    switch(type) {
+    case Capacitor::Type::AluminumPolymer:
+        return "Aluminum Polymer";
+    case Capacitor::Type::AluminumElectrolytic:
+        return "Aluminum Electrolytic";
+    case Capacitor::Type::Ceramic:
+        return "Ceramic";
+    case Capacitor::Type::ElectricDoubleLayer:
+        return "Electric Double Layer";
+    case Capacitor::Type::Film:
+        return "Film";
+    case Capacitor::Type::Mica:
+        return "Mica";
+    case Capacitor::Type::PTFE:
+        return "PTFE";
+    case Capacitor::Type::NiobiumOxide:
+        return "Niobium Oxide";
+    case Capacitor::Type::Silicon:
+        return "Silicon";
+    case Capacitor::Type::Tantalum:
+        return "Tantalum";
+    case Capacitor::Type::ThinFilm:
+        return "Thin Film";
+    case Capacitor::Type::ACMotor:
+        return "AC Motor";
+    case Capacitor::Type::LithiumHybrid:
+        return "Lithium Hybrid";
+    }
+
+    return "Unknown";
+}
+
+static const char* s_diodeTypeAsString(Diode::Type type) {
+    switch(type) {
+    case Diode::Type::Regular:
+        return "Regular";
+    case Diode::Type::Schottky:
+        return "Schottky";
+    case Diode::Type::Zener:
+        return "Zener";
+    case Diode::Type::LED:
+        return "LED";
+    }
+
+    return "Unknown";
+}
+
+static std::string s_toStandardUnits(double value, const char* unitSuffix) {
+    constexpr double KILO = 1e3;
+    constexpr double MEGA = 1e6;
+    constexpr double GIGA = 1e9;
+    constexpr double MILLI = 1e-3;
+    constexpr double MICRO = 1e-6;
+    constexpr double NANO = 1e-9;
+    constexpr double PICO = 1e-12;
+
+    char buffer[32];
+
+    if (value >= GIGA) {
+        snprintf(buffer, sizeof(buffer), "%.4g G%s", value / GIGA, unitSuffix);
+    } else if (value >= MEGA) {
+        snprintf(buffer, sizeof(buffer), "%.4g M%s", value / MEGA, unitSuffix);
+    } else if (value >= KILO) {
+        snprintf(buffer, sizeof(buffer), "%.4g k%s", value / KILO, unitSuffix);
+    } else if (value >= 1.0) {
+        snprintf(buffer, sizeof(buffer), "%.4g %s", value, unitSuffix);
+    } else if (value >= MILLI) {
+        snprintf(buffer, sizeof(buffer), "%.4g m%s", value / MILLI, unitSuffix);
+    } else if (value >= MICRO) {
+        snprintf(buffer, sizeof(buffer), "%.4g µ%s", value / MICRO, unitSuffix);
+    } else if (value >= NANO) {
+        snprintf(buffer, sizeof(buffer), "%.4g n%s", value / NANO, unitSuffix);
+    } else if (value >= PICO) {
+        snprintf(buffer, sizeof(buffer), "%.4g n%s", value / PICO, unitSuffix);
+    } else {
+        snprintf(buffer, sizeof(buffer), "%.4g %s", value, unitSuffix);
+    }
+
+    return std::string(buffer);
+}
+
+static QTableWidgetItem* s_newTableItemi(int value) {
+    auto newItem = new QTableWidgetItem();
+    newItem->setData(Qt::DisplayRole, value);
+    return newItem;
+}
+
+static QTableWidgetItem* s_newTableItemd(double value) {
+    auto newItem = new QTableWidgetItem();
+    newItem->setData(Qt::DisplayRole, value);
+    return newItem;
+}
+
+static QTableWidgetItem* s_newTableItem(const std::string& value) {
+    return new QTableWidgetItem(value.c_str());
+}
+
+static QTableWidgetItem* s_newTableItem(const char* value) {
+    return new QTableWidgetItem(value);
 }

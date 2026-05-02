@@ -55,7 +55,7 @@ set(APP_SOURCES
 	include/ui/ViewItemDialog.hpp
 	include/ui/Settings.hpp
 
-	src/ui/Database.cpp
+	src/ui/DatabaseManager.cpp
 	src/ui/MainWindow.cpp
 	src/ui/AddItemDialog.cpp
 	src/ui/EditItemDialog.cpp
