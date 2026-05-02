@@ -77,13 +77,15 @@ namespace ecim {
             string partNumber;
             string description;
             size_t quantity;
+            ComponentID ID = 0;
         };
 
         // Constructor; Must provide basic properties and type of component
         explicit ElectronicComponent(
             const BaseConfig& config,
             Type type
-        ) : m_rating(config.rating),
+        ) : m_id(config.ID),
+            m_rating(config.rating),
             m_name(config.name),
             m_manufacturer(config.manufacturer),
             m_partNumber(config.partNumber),
