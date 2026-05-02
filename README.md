@@ -128,7 +128,7 @@ app/ecim_tests
 Inside `scripts/filldb` resides the `filldb.sh` bash script that allows the developer to prepopulate an sqlite database for development. It will populate with real world data from [LCSC](https://www.lcsc.com/) for every type of electrical component. This is useful for testing the UI's view of items and seeing if it is populating correctly or for stress testing the backend. Unfortuntely, this may not work on windows, being that the script is bash (meant for UNIX systems). To prepopulate an sqlite database, you'd typically want to target the database file that the application will read, like:
 
 ```bash
-./filldb.sh ~/.local/share/ecim/inventory.db
+scripts/filldb/filldb.sh ~/.local/share/ecim/inventory.db
 ```
 
 Afterwards, the database will be loaded with real world data.
