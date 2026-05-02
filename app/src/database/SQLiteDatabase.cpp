@@ -1380,8 +1380,9 @@ void SQLiteDatabase::_getStatistics(
     _checkResultCode(ret, "Unable to get number of pages");
 
     if(ret != SQLITE_ROW) {
-        printf("[Warning]: Unable to get number of pages, but sqlite did not throw an error; unknown behavior");
+        printf("[Warning]: Unable to get number of pages, but sqlite did not throw an error; unknown behavior\n");
         totalPages = totalItems = 0;
+        return;
     }
 
     totalItems = sqlite3_column_int(accessor, 0);
@@ -1389,7 +1390,8 @@ void SQLiteDatabase::_getStatistics(
     if(config.pagination.has_value()){
         int itemsPerPage = config.pagination.value().itemsPerPage;
 
-        totalPages = totalItems / itemsPerPage;
+        // Ceiling integer division
+        totalPages = (totalItems + itemsPerPage - 1) / itemsPerPage;
     }
     else
         totalPages = totalItems != 0 ? 1 : 0;

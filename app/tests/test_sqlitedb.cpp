@@ -589,7 +589,7 @@ TEST(SQLiteBackend, Pagination) {
     // statisticsOnly = true should not make it return items
     EXPECT_EQ(result.items.size(), 0);
     EXPECT_EQ(result.numItems, itemsPerPage);
-    EXPECT_EQ(result.numPages, total / itemsPerPage);
+    EXPECT_EQ(result.numPages, (total + itemsPerPage - 1) / itemsPerPage);
     EXPECT_EQ(result.currentPage, 1);
 
     EXPECT_NO_THROW(result = db->getAllComponents({
@@ -598,7 +598,7 @@ TEST(SQLiteBackend, Pagination) {
     }));
 
     // Current Page should be set within limits
-    EXPECT_EQ(result.currentPage, total / itemsPerPage);
+    EXPECT_EQ(result.currentPage, (total + itemsPerPage - 1) / itemsPerPage);
     EXPECT_EQ(result.numItems, itemsPerPage);
 
     // Turn to the page where the capacitors are
