@@ -8,13 +8,19 @@
 
 namespace ecim {
     struct Pagination {
-        int itemsPerPage = 20;
         int pageNumber = 1; // Pages start at 1
+        int itemsPerPage = 20;
 
         Pagination() {}
         Pagination(int pageNumber, int itemsPerPage) :
         pageNumber(pageNumber),
-        itemsPerPage(itemsPerPage) {}
+        itemsPerPage(itemsPerPage) {
+            if(pageNumber <= 0)
+                throw std::invalid_argument("Page number cannot be equal or less than 0");
+
+            if(itemsPerPage <= 0)
+                throw std::invalid_argument("Items per page cannot be equal or less than 0");
+        }
 
         bool operator==(const Pagination& other) const;
         bool operator!=(const Pagination& other) const;
