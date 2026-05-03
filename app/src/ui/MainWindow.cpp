@@ -1,5 +1,6 @@
 #include "ui/MainWindow.hpp"
 #include "database/MassQueryConfig.hpp"
+#include "electrical/ElectronicComponent.hpp"
 #include "electrical/ElectronicComponents.hpp"
 #include "ui_MainWindow.h"
 
@@ -10,6 +11,7 @@
 
 #include "Config.hpp"
 
+#include <regex>
 #include <QMessageBox>
 #include <QSettings>
 #include <QDir>
@@ -17,11 +19,22 @@
 using namespace ecim;
 
 #define ITEMS_PER_PAGE 20
+#define NUMERIC_VALUE_SEARCH_TOLERANCE 1e-9
+
+#define KILO 1e3
+#define MEGA 1e6
+#define GIGA 1e9
+#define MILLI 1e-3
+#define PERCENT 1e-2
+#define MICRO 1e-6
+#define NANO 1e-9
+#define PICO 1e-12
 
 static const char* s_componentTypeAsString(ElectronicComponent::Type type);
 static const char* s_capacitorTypeAsString(Capacitor::Type type);
 static const char* s_diodeTypeAsString(Diode::Type type);
 static std::string s_toStandardUnits(double value, const char* unitSuffix);
+static double s_fromStandardUnits(const std::string& value, bool& matched);
 static QTableWidgetItem* s_newTableItemi(int);
 static QTableWidgetItem* s_newTableItemd(double);
 static QTableWidgetItem* s_newTableItem(const std::string&);
@@ -39,8 +52,8 @@ MainWindow::MainWindow(QWidget *parent)
     else
         qDebug() << "Database opened successfully";
 
-    connect(m_ui->searchBar, &QLineEdit::returnPressed,
-            this, &MainWindow::onSearchEnterPressed);
+    connect(m_ui->searchBar, &QLineEdit::textChanged,
+            this, &MainWindow::onSearch);
 
     m_ui->itemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_ui->itemsTable->verticalHeader()->setVisible(false);
@@ -82,7 +95,7 @@ void MainWindow::updatePaginator() {
     auto* lastPage = m_ui->lastPage;
 
     pageNumber->setText(QString("%1").arg(m_dbResult.currentPage));
-    numPages->setText(QString("/ %1").arg(m_dbResult.numPages));
+    numPages->setText(QString("/  %1").arg(m_dbResult.numPages));
 
     if(m_dbResult.numPages == 0) {
         firstPage->setEnabled(false);
@@ -117,33 +130,28 @@ void MainWindow::setupPaginator() {
 
     connect(firstPage, &QAbstractButton::clicked, [this]() {
         m_queryConfig.pagination = Pagination(1, ITEMS_PER_PAGE);
-        fetchDatabase();
-        populateTable();
+        fetchDbAndPopulate();
     });
 
     connect(previousPage, &QAbstractButton::clicked, [this]() {
         m_queryConfig.pagination = Pagination(m_dbResult.currentPage - 1, ITEMS_PER_PAGE);
-        fetchDatabase();
-        populateTable();
+        fetchDbAndPopulate();
     });
 
     connect(pageNumber, &QLineEdit::returnPressed, [this]() {
         int page = m_ui->pageNumber->text().toInt();
         m_queryConfig.pagination = Pagination(page, ITEMS_PER_PAGE);
-        fetchDatabase();
-        populateTable();
+        fetchDbAndPopulate();
     });
 
     connect(nextPage, &QAbstractButton::clicked, [this]() {
         m_queryConfig.pagination = Pagination(m_dbResult.currentPage + 1, ITEMS_PER_PAGE);
-        fetchDatabase();
-        populateTable();
+        fetchDbAndPopulate();
     });
 
     connect(lastPage, &QAbstractButton::clicked, [this]() {
         m_queryConfig.pagination = Pagination(m_dbResult.numPages, ITEMS_PER_PAGE);
-        fetchDatabase();
-        populateTable();
+        fetchDbAndPopulate();
     });
 }
 
@@ -275,14 +283,73 @@ void MainWindow::autoResizeTableColumns() {
     }
 }
 
+void MainWindow::fetchDbAndPopulate() {
+    setSearchFilters();
+    fetchDatabase();
+    populateTable();
+    updatePartsFoundLabel(m_dbResult.totalNumItems);
+    updatePaginator();
+}
+
+void MainWindow::setSearchFilters() {
+    if(m_searchQuery.empty()) {
+        m_queryConfig.filters.reset();
+        return;
+    }
+
+    auto filters = std::vector<Filter>{
+        { static_cast<ComponentProperty>(ElectronicComponent::Property::Manufacturer), Filter::Operation::Contains, m_searchQuery },
+        { static_cast<ComponentProperty>(ElectronicComponent::Property::PartNumber), Filter::Operation::Contains, m_searchQuery }
+    };
+
+    bool numericValueFound;
+    double numericValue = s_fromStandardUnits(m_searchQuery, numericValueFound);
+
+    if(m_catalogType.has_value() && numericValueFound) {
+        std::pair<double, double> range = {
+            numericValue * (1 - NUMERIC_VALUE_SEARCH_TOLERANCE),
+            numericValue * (1 + NUMERIC_VALUE_SEARCH_TOLERANCE)
+        };
+
+        ComponentProperty property;
+
+        switch(m_catalogType.value()) {
+        case ElectronicComponent::Type::Resistor:
+            property = static_cast<ComponentProperty>(Resistor::Property::Resistance);
+            break;
+        case ElectronicComponent::Type::Capacitor:
+            property = static_cast<ComponentProperty>(Capacitor::Property::Capacitance);
+            break;
+        case ElectronicComponent::Type::Inductor:
+            property = static_cast<ComponentProperty>(Inductor::Property::Inductance);
+            break;
+        case ElectronicComponent::Type::Diode:
+            property = static_cast<ComponentProperty>(Diode::Property::ForwardVoltage);
+            break;
+        case ElectronicComponent::Type::BJTransistor:
+            property = static_cast<ComponentProperty>(BJTransistor::Property::Gain);
+            break;
+        case ElectronicComponent::Type::FETransistor:
+            property = static_cast<ComponentProperty>(FETransistor::Property::ThresholdVoltage);
+            break;
+        case ElectronicComponent::Type::IntegratedCircuit:
+            property = static_cast<ComponentProperty>(IntegratedCircuit::Property::PinCount);
+            break;
+        default:
+            property = static_cast<ComponentProperty>(ElectronicComponent::Property::Quantity);
+        }
+
+        filters.emplace_back(Filter{property, Filter::Operation::InRange, range});
+    }
+
+    m_queryConfig.filters = { std::move(filters), FilterNode::Type::Or };
+}
+
 void MainWindow::fetchDatabase() {
     if(!m_catalogType.has_value())
         m_dbResult = m_dbManager.getAllComponents(m_queryConfig);
     else
         m_dbResult = m_dbManager.getAllComponentsByType(m_catalogType.value(), m_queryConfig);
-
-    updatePartsFoundLabel(m_dbResult.totalNumItems);
-    updatePaginator();
 }
 
 void MainWindow::populateTable() {
@@ -361,18 +428,10 @@ void MainWindow::populateTable() {
     }
 }
 
-void MainWindow::onSearchEnterPressed() {
-    std::string searchQuery = m_ui->searchBar->text().toStdString();
+void MainWindow::onSearch() {
+    m_searchQuery = m_ui->searchBar->text().toStdString();
 
-    m_queryConfig.filters = {
-        std::vector<Filter>{
-            { static_cast<ComponentProperty>(ElectronicComponent::Property::Manufacturer), Filter::Operation::Contains, searchQuery },
-            { static_cast<ComponentProperty>(ElectronicComponent::Property::PartNumber), Filter::Operation::Contains, searchQuery }
-        }, FilterNode::Type::Or
-    };
-
-    fetchDatabase();
-    populateTable();
+    fetchDbAndPopulate();
 }
 
 void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path) {
@@ -392,8 +451,7 @@ void MainWindow::onChangeCatalog(int selectionIndex) {
     setupTableColumns();
     autoResizeTableColumns();
 
-    fetchDatabase();
-    populateTable();
+    fetchDbAndPopulate();
 }
 
 void MainWindow::resizeEvent(QResizeEvent* event) {
@@ -407,8 +465,7 @@ void MainWindow::showEvent(QShowEvent* event) {
 
     autoResizeTableColumns();
 
-    fetchDatabase();
-    populateTable();
+    fetchDbAndPopulate();
 }
 
 static const char* s_componentTypeAsString(ElectronicComponent::Type type) {
@@ -481,37 +538,63 @@ static const char* s_diodeTypeAsString(Diode::Type type) {
 }
 
 static std::string s_toStandardUnits(double value, const char* unitSuffix) {
-    constexpr double KILO = 1e3;
-    constexpr double MEGA = 1e6;
-    constexpr double GIGA = 1e9;
-    constexpr double MILLI = 1e-3;
-    constexpr double MICRO = 1e-6;
-    constexpr double NANO = 1e-9;
-    constexpr double PICO = 1e-12;
-
     char buffer[32];
 
-    if (value >= GIGA) {
+    if (value >= GIGA)
         snprintf(buffer, sizeof(buffer), "%.4g G%s", value / GIGA, unitSuffix);
-    } else if (value >= MEGA) {
+    else if (value >= MEGA)
         snprintf(buffer, sizeof(buffer), "%.4g M%s", value / MEGA, unitSuffix);
-    } else if (value >= KILO) {
+    else if (value >= KILO)
         snprintf(buffer, sizeof(buffer), "%.4g k%s", value / KILO, unitSuffix);
-    } else if (value >= 1.0) {
+    else if (value >= 1.0)
         snprintf(buffer, sizeof(buffer), "%.4g %s", value, unitSuffix);
-    } else if (value >= MILLI) {
+    else if (value >= MILLI)
         snprintf(buffer, sizeof(buffer), "%.4g m%s", value / MILLI, unitSuffix);
-    } else if (value >= MICRO) {
+    else if (value >= MICRO)
         snprintf(buffer, sizeof(buffer), "%.4g µ%s", value / MICRO, unitSuffix);
-    } else if (value >= NANO) {
+    else if (value >= NANO)
         snprintf(buffer, sizeof(buffer), "%.4g n%s", value / NANO, unitSuffix);
-    } else if (value >= PICO) {
+    else if (value >= PICO)
         snprintf(buffer, sizeof(buffer), "%.4g n%s", value / PICO, unitSuffix);
-    } else {
+    else
         snprintf(buffer, sizeof(buffer), "%.4g %s", value, unitSuffix);
-    }
 
     return std::string(buffer);
+}
+
+static double s_fromStandardUnits(const std::string& value, bool& matched) {
+    const std::regex pattern(R"(([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\s*([pnumkMG]?)\s*[a-z%A-ZΩ°]*)");
+    std::smatch match;
+
+    matched = false;
+
+    if(!std::regex_match(value, match, pattern))
+        return 0.0;
+
+    matched = true;
+
+    double number = std::stod(match[1]);
+    const auto& suffix = match[2].str();
+    if(suffix.empty())
+        return number;
+    else if(suffix[0] == 'p')
+        number *= PICO;
+    else if(suffix[0] == 'n')
+        number *= NANO;
+    else if(suffix[0] == 'u')
+        number *= MICRO;
+    else if(suffix[0] == 'm')
+        number *= MILLI;
+    else if(suffix[0] == '%')
+        number *= PERCENT;
+    else if(suffix[0] == 'k')
+        number *= KILO;
+    else if(suffix[0] == 'M')
+        number *= MEGA;
+    else if(suffix[0] == 'G')
+        number *= GIGA;
+
+    return number;
 }
 
 static QTableWidgetItem* s_newTableItemi(int value) {

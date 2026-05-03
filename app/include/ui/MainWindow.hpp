@@ -32,6 +32,7 @@ private:
     std::optional<ecim::ElectronicComponent::Type> m_catalogType;
     float m_columnPorportionalWidths[16];
 
+    std::string m_searchQuery;
     ecim::MassQueryConfig m_queryConfig;
     ecim::MassQueryResult m_dbResult;
 
@@ -53,11 +54,13 @@ private:
     void setupTableColumns();
     void autoResizeTableColumns();
 
+    void fetchDbAndPopulate();
+    void setSearchFilters();
     void fetchDatabase();
     void populateTable();
 
     // Event handlers
-    void onSearchEnterPressed();
+    void onSearch();
     void addItem(const QString &name, int parts, int part_num, const QString &image_path);
     void openItemView(int row, int column);
     void onChangeCatalog(int selectionIndex);
