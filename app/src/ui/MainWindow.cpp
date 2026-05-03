@@ -16,6 +16,8 @@
 #include <QSettings>
 #include <QDir>
 
+#include <stdexcept>
+
 using namespace ecim;
 
 #define ITEMS_PER_PAGE 20
@@ -54,6 +56,34 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect(m_ui->searchBar, &QLineEdit::textChanged,
             this, &MainWindow::onSearch);
+
+    connect(m_ui->itemsTable, &QTableWidget::cellDoubleClicked,
+            this, &MainWindow::openItemView);
+
+    connect(m_ui->addItem, &QAbstractButton::clicked, this, [this]() {
+        AddItemDialog dialog(this);
+
+        if(dialog.exec() != QDialog::Accepted)
+            return;
+
+        addItem(
+            dialog.getName(),
+            dialog.getQuantity(),
+            dialog.getPartNumber(),
+            dialog.getImagePath()
+        );
+    });
+
+    connect(m_ui->editItem, &QAbstractButton::clicked, this, [this]() {
+        int row = m_ui->itemsTable->currentRow();
+
+        if(row < 0) {
+            QMessageBox::information(this, "Edit Item", "Select an item to edit.");
+            return;
+        }
+
+        openItemEdit(row);
+    });
 
     m_ui->itemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_ui->itemsTable->verticalHeader()->setVisible(false);
@@ -435,9 +465,228 @@ void MainWindow::onSearch() {
 }
 
 void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path) {
+    if(!m_catalogType.has_value()) {
+        QMessageBox::information(
+            this,
+            "Add Item",
+            "Select a specific catalog type before adding a new item."
+        );
+        return;
+    }
+
+    ElectronicComponent::BaseConfig base = {
+        .rating = {},
+        .name = name.trimmed().toStdString(),
+        .manufacturer = "Unknown",
+        .partNumber = QString::number(part_num).toStdString(),
+        .description = image_path.toStdString(),
+        .quantity = static_cast<size_t>(quantity)
+    };
+
+    try {
+        switch(m_catalogType.value()) {
+        case ElectronicComponent::Type::Resistor: {
+            Resistor component(base, 0.0, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::Capacitor: {
+            Capacitor component(base, Capacitor::Type::Ceramic, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::Inductor: {
+            Inductor component(base, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::Diode: {
+            Diode component(base, 0.0, Diode::Type::Regular);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::BJTransistor: {
+            BJTransistor component(base, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::FETransistor: {
+            FETransistor component(base, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        case ElectronicComponent::Type::IntegratedCircuit: {
+            IntegratedCircuit component(base, 1, 0.0, 0.0, 0.0);
+            m_dbManager.addComponent(component);
+            break;
+        }
+        }
+    }
+    catch(const std::exception& e) {
+        QMessageBox::critical(this, "Add Item", QString("Could not add item: %1").arg(e.what()));
+        return;
+    }
+
+    fetchDbAndPopulate();
 }
 
 void MainWindow::openItemView(int row, int column) {
+    (void)column;
+
+    auto* idCell = m_ui->itemsTable->item(row, 0);
+
+    if(!idCell)
+        return;
+
+    ComponentID id = static_cast<ComponentID>(idCell->data(Qt::DisplayRole).toULongLong());
+
+    std::unique_ptr<ElectronicComponent> component;
+
+    try {
+        component = m_dbManager.getComponent(id);
+    }
+    catch(const std::exception& e) {
+        QMessageBox::critical(this, "View Item", QString("Could not load item: %1").arg(e.what()));
+        return;
+    }
+
+    if(!component) {
+        QMessageBox::warning(this, "View Item", "The selected item no longer exists.");
+        fetchDbAndPopulate();
+        return;
+    }
+
+    ViewItemDialog dialog(this);
+    dialog.setItemData(
+        component->name().c_str(),
+        static_cast<int>(component->quantity()),
+        QString(component->partNumber().c_str()).toInt(),
+        component->description().c_str()
+    );
+    dialog.exec();
+}
+
+void MainWindow::openItemEdit(int row) {
+    auto* idCell = m_ui->itemsTable->item(row, 0);
+
+    if(!idCell)
+        return;
+
+    ComponentID id = static_cast<ComponentID>(idCell->data(Qt::DisplayRole).toULongLong());
+
+    std::unique_ptr<ElectronicComponent> component;
+
+    try {
+        component = m_dbManager.getComponent(id);
+    }
+    catch(const std::exception& e) {
+        QMessageBox::critical(this, "Edit Item", QString("Could not load item: %1").arg(e.what()));
+        return;
+    }
+
+    if(!component) {
+        QMessageBox::warning(this, "Edit Item", "The selected item no longer exists.");
+        fetchDbAndPopulate();
+        return;
+    }
+
+    EditItemDialog dialog(this);
+    dialog.setItemData(
+        component->name().c_str(),
+        static_cast<int>(component->quantity()),
+        QString(component->partNumber().c_str()).toInt(),
+        component->description().c_str()
+    );
+
+    connect(&dialog, &EditItemDialog::deleteRequested, this, [this, id](int) {
+        try {
+            m_dbManager.removeComponent(id);
+            fetchDbAndPopulate();
+        }
+        catch(const std::exception& e) {
+            QMessageBox::critical(this, "Delete Item", QString("Could not delete item: %1").arg(e.what()));
+        }
+    });
+
+    if(dialog.exec() != QDialog::Accepted)
+        return;
+
+    ElectronicComponent::BaseConfig base = {
+        .rating = component->rating(),
+        .name = dialog.getName().trimmed().toStdString(),
+        .manufacturer = component->manufacturer(),
+        .partNumber = QString::number(dialog.getPartNumber()).toStdString(),
+        .description = dialog.getImagePath().toStdString(),
+        .quantity = static_cast<size_t>(dialog.getQuantity()),
+        .ID = component->ID()
+    };
+
+    try {
+        switch(component->type()) {
+        case ElectronicComponent::Type::Resistor: {
+            auto* typed = dynamic_cast<Resistor*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for resistor");
+            Resistor updated(base, typed->resistance(), typed->toleranceBand());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::Capacitor: {
+            auto* typed = dynamic_cast<Capacitor*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for capacitor");
+            Capacitor updated(base, typed->capacitorType(), typed->capacitance());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::Inductor: {
+            auto* typed = dynamic_cast<Inductor*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for inductor");
+            Inductor updated(base, typed->inductance());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::Diode: {
+            auto* typed = dynamic_cast<Diode*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for diode");
+            Diode updated(base, typed->forwardVoltage(), typed->diodeType());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::BJTransistor: {
+            auto* typed = dynamic_cast<BJTransistor*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for BJ transistor");
+            BJTransistor updated(base, typed->gain());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::FETransistor: {
+            auto* typed = dynamic_cast<FETransistor*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for FE transistor");
+            FETransistor updated(base, typed->thresholdVoltage());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        case ElectronicComponent::Type::IntegratedCircuit: {
+            auto* typed = dynamic_cast<IntegratedCircuit*>(component.get());
+            if(!typed)
+                throw std::runtime_error("Internal type mismatch for integrated circuit");
+            IntegratedCircuit updated(base, typed->pinCount(), typed->width(), typed->height(), typed->length());
+            m_dbManager.editComponent(id, updated);
+            break;
+        }
+        }
+    }
+    catch(const std::exception& e) {
+        QMessageBox::critical(this, "Edit Item", QString("Could not save item changes: %1").arg(e.what()));
+        return;
+    }
+
+    fetchDbAndPopulate();
 }
 
 void MainWindow::onChangeCatalog(int selectionIndex) {

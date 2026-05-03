@@ -21,6 +21,16 @@ namespace ecim{
         QString getDatabasePath() const;
 
         // API passthrough functions
+        ComponentID addComponent(
+            const ElectronicComponent& newComponent);
+        std::unique_ptr<ElectronicComponent> removeComponent(
+            ComponentID id);
+        void editComponent(
+            ComponentID id,
+            const ElectronicComponent& updatedComponent);
+        std::unique_ptr<ElectronicComponent> getComponent(
+            ComponentID id);
+
         MassQueryResult getAllComponents(
             const MassQueryConfig& queryConfig = ecim::MassQueryConfig());
         MassQueryResult getAllComponentsByType(

@@ -63,6 +63,7 @@ private:
     void onSearch();
     void addItem(const QString &name, int parts, int part_num, const QString &image_path);
     void openItemView(int row, int column);
+    void openItemEdit(int row);
     void onChangeCatalog(int selectionIndex);
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;

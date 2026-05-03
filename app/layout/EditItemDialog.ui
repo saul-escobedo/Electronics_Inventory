@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+    <string>Edit Item</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -23,7 +23,7 @@
     </rect>
    </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::NoButton</set>
+    <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Save</set>
    </property>
   </widget>
   <widget class="QLineEdit" name="name_line_edit">
@@ -66,7 +66,10 @@
     </rect>
    </property>
    <property name="text">
-    <string>TextLabel</string>
+    <string>No image selected</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
    </property>
   </widget>
   <widget class="QPushButton" name="select_image_button">
@@ -79,7 +82,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>PushButton</string>
+    <string>Select Image</string>
    </property>
   </widget>
   <widget class="QPushButton" name="delete_button">
@@ -95,6 +98,45 @@
     <string>Delete Item</string>
    </property>
   </widget>
+    <widget class="QLabel" name="name_label">
+     <property name="geometry">
+        <rect>
+         <x>250</x>
+         <y>40</y>
+         <width>81</width>
+         <height>25</height>
+        </rect>
+     </property>
+     <property name="text">
+        <string>Name:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="part_number_label">
+     <property name="geometry">
+        <rect>
+         <x>250</x>
+         <y>90</y>
+         <width>81</width>
+         <height>25</height>
+        </rect>
+     </property>
+     <property name="text">
+        <string>Part Number:</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="quantity_label">
+     <property name="geometry">
+        <rect>
+         <x>250</x>
+         <y>140</y>
+         <width>81</width>
+         <height>25</height>
+        </rect>
+     </property>
+     <property name="text">
+        <string>Quantity:</string>
+     </property>
+    </widget>
  </widget>
  <resources/>
  <connections>

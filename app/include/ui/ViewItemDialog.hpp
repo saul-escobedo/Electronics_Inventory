@@ -15,6 +15,13 @@ public:
     explicit ViewItemDialog(QWidget *parent = nullptr);
     ~ViewItemDialog();
 
+    void setItemData(
+        const QString &name,
+        int quantity,
+        int part_number,
+        const QString &image_path
+    );
+
     //Function to fill data of item.
     void Set_Item_Data(
         const QString &name,
