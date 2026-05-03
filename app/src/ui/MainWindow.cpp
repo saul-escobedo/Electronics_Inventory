@@ -1,10 +1,6 @@
 #include "ui/MainWindow.hpp"
 #include "database/MassQueryConfig.hpp"
-#include "electrical/BJTransistor.hpp"
-#include "electrical/ElectronicComponent.hpp"
-#include "electrical/FETransistor.hpp"
-#include "electrical/Inductor.hpp"
-#include "electrical/IntegratedCircuit.hpp"
+#include "electrical/ElectronicComponents.hpp"
 #include "ui_MainWindow.h"
 
 #include "ui/AddItemDialog.hpp"
@@ -17,13 +13,10 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QDir>
-#include <qmainwindow.h>
-#include <qnamespace.h>
-#include <qtablewidget.h>
-#include <qvariant.h>
-#include <qwidget.h>
 
 using namespace ecim;
+
+#define ITEMS_PER_PAGE 20
 
 static const char* s_componentTypeAsString(ElectronicComponent::Type type);
 static const char* s_capacitorTypeAsString(Capacitor::Type type);
@@ -46,35 +39,112 @@ MainWindow::MainWindow(QWidget *parent)
     else
         qDebug() << "Database opened successfully";
 
-    connect(m_ui->searchBar, &QLineEdit::textChanged,
-            this, &MainWindow::onSearchTextChanged);
     connect(m_ui->searchBar, &QLineEdit::returnPressed,
             this, &MainWindow::onSearchEnterPressed);
 
     m_ui->itemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_ui->itemsTable->verticalHeader()->setVisible(false);
-    m_ui->itemsTable->setSortingEnabled(true);
     setupTableColumns();
 
     connect(m_ui->catalogType, &QComboBox::currentIndexChanged, this, &MainWindow::onChangeCatalog);
 
+    setupPaginator();
+
     m_ui->versionLabel->setText(QString("Version v" ECIM_VERSION));
-    m_ui->buildLabel->setText(QString("Build " ECIM_BRANCH " (" ECIM_BUILD ")"));
+    m_ui->buildLabel->setText(QString("Build " ECIM_BRANCH "(" ECIM_BUILD ")"));
+
+    m_queryConfig = {
+        .pagination = Pagination(1, ITEMS_PER_PAGE),
+    };
 
     // Setup backup timer
     backupTimer = new QTimer(this);
     connect(backupTimer, &QTimer::timeout, this, &MainWindow::performBackup);
     startBackupTimer();
-
 }
 
 MainWindow::~MainWindow() {
     delete m_ui;
 }
 
-void MainWindow::updateTotalPartsLabel(int num) {
-    m_ui->totalParts->setText(
-        QString("Total parts: %1").arg(num));
+void MainWindow::updatePartsFoundLabel(int num) {
+    m_ui->partsFound->setText(
+        QString("Parts Found: %1").arg(num)
+    );
+}
+
+void MainWindow::updatePaginator() {
+    auto* firstPage = m_ui->firstPage;
+    auto* previousPage = m_ui->previousPage;
+    auto* pageNumber = m_ui->pageNumber;
+    auto* numPages = m_ui->numPages;
+    auto* nextPage = m_ui->nextPage;
+    auto* lastPage = m_ui->lastPage;
+
+    pageNumber->setText(QString("%1").arg(m_dbResult.currentPage));
+    numPages->setText(QString("/ %1").arg(m_dbResult.numPages));
+
+    if(m_dbResult.numPages == 0) {
+        firstPage->setEnabled(false);
+        previousPage->setEnabled(false);
+        pageNumber->setEnabled(false);
+        numPages->setEnabled(false);
+        nextPage->setEnabled(false);
+        lastPage->setEnabled(false);
+
+        return;
+    }
+
+    pageNumber->setEnabled(true);
+    numPages->setEnabled(true);
+    pageNumber->setValidator(new QIntValidator(1, m_dbResult.numPages));
+
+    bool onFirstPage = m_dbResult.currentPage == 1;
+    bool onLastPage = m_dbResult.currentPage == m_dbResult.numPages;
+    firstPage->setEnabled(!onFirstPage);
+    previousPage->setEnabled(!onFirstPage);
+    nextPage->setEnabled(!onLastPage);
+    lastPage->setEnabled(!onLastPage);
+}
+
+void MainWindow::setupPaginator() {
+    auto* firstPage = m_ui->firstPage;
+    auto* previousPage = m_ui->previousPage;
+    auto* pageNumber = m_ui->pageNumber;
+    auto* numPages = m_ui->numPages;
+    auto* nextPage = m_ui->nextPage;
+    auto* lastPage = m_ui->lastPage;
+
+    connect(firstPage, &QAbstractButton::clicked, [this]() {
+        m_queryConfig.pagination = Pagination(1, ITEMS_PER_PAGE);
+        fetchDatabase();
+        populateTable();
+    });
+
+    connect(previousPage, &QAbstractButton::clicked, [this]() {
+        m_queryConfig.pagination = Pagination(m_dbResult.currentPage - 1, ITEMS_PER_PAGE);
+        fetchDatabase();
+        populateTable();
+    });
+
+    connect(pageNumber, &QLineEdit::returnPressed, [this]() {
+        int page = m_ui->pageNumber->text().toInt();
+        m_queryConfig.pagination = Pagination(page, ITEMS_PER_PAGE);
+        fetchDatabase();
+        populateTable();
+    });
+
+    connect(nextPage, &QAbstractButton::clicked, [this]() {
+        m_queryConfig.pagination = Pagination(m_dbResult.currentPage + 1, ITEMS_PER_PAGE);
+        fetchDatabase();
+        populateTable();
+    });
+
+    connect(lastPage, &QAbstractButton::clicked, [this]() {
+        m_queryConfig.pagination = Pagination(m_dbResult.numPages, ITEMS_PER_PAGE);
+        fetchDatabase();
+        populateTable();
+    });
 }
 
 void MainWindow::startBackupTimer() {
@@ -106,8 +176,7 @@ void MainWindow::startBackupTimer() {
     else if(freq == "Monthly")
         intervalMs = 30LL * 24 * 60 * 60 * 1000;
 
-    if(intervalMs > 0)
-    {
+    if(intervalMs > 0) {
         backupTimer->start(intervalMs);
         qDebug() << "Backup timer started:" << freq;
     }
@@ -207,20 +276,13 @@ void MainWindow::autoResizeTableColumns() {
 }
 
 void MainWindow::fetchDatabase() {
-    MassQueryConfig cfg = {
-        .pagination = Pagination(),
-    };
-
-    MassQueryResult result;
-
     if(!m_catalogType.has_value())
-        result = m_dbManager.getAllComponents(cfg);
+        m_dbResult = m_dbManager.getAllComponents(m_queryConfig);
     else
-        result = m_dbManager.getAllComponentsByType(m_catalogType.value());
+        m_dbResult = m_dbManager.getAllComponentsByType(m_catalogType.value(), m_queryConfig);
 
-    m_items = std::move(result.items);
-
-    updateTotalPartsLabel(result.totalNumItems);
+    updatePartsFoundLabel(m_dbResult.totalNumItems);
+    updatePaginator();
 }
 
 void MainWindow::populateTable() {
@@ -228,7 +290,7 @@ void MainWindow::populateTable() {
 
     table->setRowCount(0);
 
-    for(const auto& item : m_items) {
+    for(const auto& item : m_dbResult.items) {
         int row = table->rowCount();
         int col = 0;
 
@@ -299,10 +361,18 @@ void MainWindow::populateTable() {
     }
 }
 
-void MainWindow::onSearchTextChanged(const QString &text) {
-}
-
 void MainWindow::onSearchEnterPressed() {
+    std::string searchQuery = m_ui->searchBar->text().toStdString();
+
+    m_queryConfig.filters = {
+        std::vector<Filter>{
+            { static_cast<ComponentProperty>(ElectronicComponent::Property::Manufacturer), Filter::Operation::Contains, searchQuery },
+            { static_cast<ComponentProperty>(ElectronicComponent::Property::PartNumber), Filter::Operation::Contains, searchQuery }
+        }, FilterNode::Type::Or
+    };
+
+    fetchDatabase();
+    populateTable();
 }
 
 void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path) {

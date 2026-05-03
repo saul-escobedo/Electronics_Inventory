@@ -32,7 +32,8 @@ private:
     std::optional<ecim::ElectronicComponent::Type> m_catalogType;
     float m_columnPorportionalWidths[16];
 
-    std::vector<std::unique_ptr<ecim::ElectronicComponent>> m_items;
+    ecim::MassQueryConfig m_queryConfig;
+    ecim::MassQueryResult m_dbResult;
 
     //Functions for the setting to set backup frequency.
     QTimer *backupTimer;
@@ -41,8 +42,11 @@ private:
 
     //All functions for Dashboard are init here.
 
-    //This is for updating the total parts in stock from Dashboard.
-    void updateTotalPartsLabel(int num);
+    void updatePartsFoundLabel(int num);
+    void updatePaginator();
+
+    // Setup event handlers for the paginator
+    void setupPaginator();
 
     // Setup the table's columns depending if it needs to represent generic
     // components, or specialized types (like Capacitors)
@@ -53,7 +57,6 @@ private:
     void populateTable();
 
     // Event handlers
-    void onSearchTextChanged(const QString &text);
     void onSearchEnterPressed();
     void addItem(const QString &name, int parts, int part_num, const QString &image_path);
     void openItemView(int row, int column);
