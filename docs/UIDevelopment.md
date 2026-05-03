@@ -34,6 +34,10 @@ make ecim
 
 This is because QtCreator uses another underlying build system other than *Makefile* to construct the project.
 
+**Also Note:**
+
+Some source files (`.cpp` or `.hpp`) depend on header files that are generated after running `cmake ..`. When viewing this project for the first time, be sure to run *CMake* to have all the files ready for development, or else your IDE (other than QtCreator) may complain about missing header files.
+
 ## Files
 
 As mentioned in the [README](../README.md), the primary codebase resides in the `app` directory. Inside of it, you'll find all the UI files. Specifically:
