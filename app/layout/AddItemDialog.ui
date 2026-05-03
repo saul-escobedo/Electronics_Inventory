@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+    <string>Add Item</string>
   </property>
   <widget class="QDialogButtonBox" name="buttonBox">
    <property name="geometry">
@@ -108,7 +108,7 @@
     </rect>
    </property>
    <property name="text">
-    <string>New Image</string>
+    <string>Select Image</string>
    </property>
   </widget>
   <widget class="QLabel" name="Image_Label">
@@ -121,7 +121,10 @@
     </rect>
    </property>
    <property name="text">
-    <string/>
+    <string>No image selected</string>
+   </property>
+   <property name="alignment">
+    <set>Qt::AlignCenter</set>
    </property>
   </widget>
   <widget class="QSpinBox" name="edit_quantity">

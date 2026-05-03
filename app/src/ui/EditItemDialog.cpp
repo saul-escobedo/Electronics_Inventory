@@ -1,6 +1,11 @@
 #include "ui/EditItemDialog.hpp"
 #include "ui_EditItemDialog.h"
 
+#include <QDialogButtonBox>
+#include <QFileDialog>
+#include <QIntValidator>
+#include <QLineEdit>
+#include <QPixmap>
 #include <QPushButton>
 
 EditItemDialog::EditItemDialog(QWidget *parent)
@@ -8,11 +13,57 @@ EditItemDialog::EditItemDialog(QWidget *parent)
     , ui(new Ui::EditItemDialog)
 {
     ui->setupUi(this);
+    setWindowTitle("Edit Item");
+
+    ui->image_label->setAlignment(Qt::AlignCenter);
+    ui->image_label->setText("No image selected");
+    ui->part_number_line_edit->setValidator(new QIntValidator(1, 999999999, this));
+    ui->quantity_spin_box->setMinimum(0);
+
+    auto updateSaveState = [this]() {
+        const bool hasName = !ui->name_line_edit->text().trimmed().isEmpty();
+        const bool hasPartNumber = !ui->part_number_line_edit->text().trimmed().isEmpty();
+        ui->buttonBox->button(QDialogButtonBox::Save)->setEnabled(hasName && hasPartNumber);
+    };
+
+    connect(ui->name_line_edit, &QLineEdit::textChanged, this, [updateSaveState]() {
+        updateSaveState();
+    });
+    connect(ui->part_number_line_edit, &QLineEdit::textChanged, this, [updateSaveState]() {
+        updateSaveState();
+    });
+
+    connect(ui->select_image_button, &QPushButton::clicked, this, [this]() {
+        QString file = QFileDialog::getOpenFileName(
+            this,
+            "Select Image",
+            "",
+            "Images (*.png *.jpg *.jpeg)"
+        );
+
+        if(file.isEmpty()) {
+            return;
+        }
+
+        imagePath = file;
+        QPixmap pix(file);
+
+        if(pix.isNull()) {
+            ui->image_label->setPixmap(QPixmap());
+            ui->image_label->setText("Image preview unavailable");
+            return;
+        }
+
+        ui->image_label->setText(QString());
+        ui->image_label->setPixmap(pix.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    });
 
     connect(ui->delete_button, &QPushButton::clicked, this, [this]() {
         emit deleteRequested(originalPartNumber);
         reject();
     });
+
+    updateSaveState();
 }
 
 EditItemDialog::~EditItemDialog()
@@ -34,7 +85,13 @@ void EditItemDialog::setItemData(const QString &name,
     originalPartNumber = partNumber;
 
     QPixmap pix(imagePath);
-    ui->image_label->setPixmap(pix.scaled(100,100, Qt::KeepAspectRatio));
+    if(pix.isNull()) {
+        ui->image_label->setPixmap(QPixmap());
+        ui->image_label->setText("No image selected");
+    } else {
+        ui->image_label->setText(QString());
+        ui->image_label->setPixmap(pix.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+    }
 }
 
 QString EditItemDialog::getName() const

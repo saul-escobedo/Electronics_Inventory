@@ -119,6 +119,25 @@ QString DatabaseManager::getDatabasePath() const {
     return m_dbPath;
 }
 
+ComponentID DatabaseManager::addComponent(const ElectronicComponent& newComponent) {
+    return m_db->addComponent(newComponent);
+}
+
+std::unique_ptr<ElectronicComponent> DatabaseManager::removeComponent(ComponentID id) {
+    return m_db->removeComponent(id);
+}
+
+void DatabaseManager::editComponent(
+    ComponentID id,
+    const ElectronicComponent& updatedComponent
+) {
+    m_db->editComponent(id, updatedComponent);
+}
+
+std::unique_ptr<ElectronicComponent> DatabaseManager::getComponent(ComponentID id) {
+    return m_db->getComponent(id);
+}
+
 MassQueryResult DatabaseManager::getAllComponents(
     const MassQueryConfig& queryConfig
 ) {

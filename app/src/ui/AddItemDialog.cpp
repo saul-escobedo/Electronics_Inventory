@@ -4,6 +4,8 @@
 #include <QFileDialog>
 #include <QPixmap>
 #include <QIntValidator>
+#include <QDialogButtonBox>
+#include <QLineEdit>
 #include <QPushButton>
 
 AddItemDialog::AddItemDialog(QWidget *parent)
@@ -11,14 +13,33 @@ AddItemDialog::AddItemDialog(QWidget *parent)
     , ui(new Ui::AddItemDialog)
 {
     ui->setupUi(this);
+    setWindowTitle("Add Item");
+
+    ui->Image_Label->setAlignment(Qt::AlignCenter);
+    ui->Image_Label->setText("No image selected");
+    ui->edit_quantity->setMinimum(0);
 
     //Make it so QLineEdit accepts ONLY integers.
     ui->edit_part_num->setValidator(
-        new QIntValidator(0, 999999999, this)
+        new QIntValidator(1, 999999999, this)
     );
 
+    auto updateConfirmState = [this]() {
+        const bool hasName = !ui->edit_name->text().trimmed().isEmpty();
+        const bool hasPartNumber = !ui->edit_part_num->text().trimmed().isEmpty();
+        ui->buttonBox->button(QDialogButtonBox::Ok)->setEnabled(hasName && hasPartNumber);
+    };
+
+    connect(ui->edit_name, &QLineEdit::textChanged, this, [updateConfirmState]() {
+        updateConfirmState();
+    });
+    connect(ui->edit_part_num, &QLineEdit::textChanged, this, [updateConfirmState]() {
+        updateConfirmState();
+    });
+    updateConfirmState();
+
     //Button to add image when adding item.
-    connect(ui->Select_Image, &QPushButton::clicked, this, [=]() {
+    connect(ui->Select_Image, &QPushButton::clicked, this, [this]() {
 
         QString file = QFileDialog::getOpenFileName(
             this,
@@ -32,7 +53,13 @@ AddItemDialog::AddItemDialog(QWidget *parent)
             image_path = file;
 
             QPixmap pix(file);
-            ui->Image_Label->setPixmap(pix.scaled(100, 100, Qt::KeepAspectRatio));
+            if(!pix.isNull()) {
+                ui->Image_Label->setText(QString());
+                ui->Image_Label->setPixmap(pix.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+            } else {
+                ui->Image_Label->setPixmap(QPixmap());
+                ui->Image_Label->setText("Image preview unavailable");
+            }
         }
 
     });

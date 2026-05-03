@@ -28,7 +28,7 @@ public:
 private:
     Ui::EditItemDialog *ui;
     QString imagePath;
-    int originalPartNumber;     //To identify item in database.
+    int originalPartNumber = -1; // To identify item in database.
 
 signals:
     void deleteRequested(int partNumber);
