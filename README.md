@@ -2,6 +2,8 @@
 
 # Electronic Components Inventory Manager
 
+![Screenshot](./assets/images/screenshots/Screenshot%20from%202026-05-03%2002-43-12.png)
+
 ## Table of Contents
 
 * [Description](#description)
