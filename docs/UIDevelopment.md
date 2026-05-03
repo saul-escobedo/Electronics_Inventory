@@ -41,4 +41,38 @@ As mentioned in the [README](../README.md), the primary codebase resides in the 
 * `.ui` layout files reside in `app/layout`
 * `.cpp` source files of custom Qt widgets reside in `app/src/ui`
 
-The `.ui` files are usually edited in QtCreator, not by hand.
+The `.ui` files are edited in QtCreator, not by hand.
+
+## Recommended: Prepopulating the SQLite Database For Development
+
+Inside `scripts/filldb` resides the `filldb.sh` bash script that allows the developer to prepopulate an sqlite database for development. It will populate with real world data from [LCSC](https://www.lcsc.com/) for every type of electrical component. This is useful for testing the UI's view of items and seeing if it is populating correctly or for stress testing the backend. If working on Windows, run the script with *Git Bash* to work around the fact that `filldb.sh` is a shell script. To prepopulate an sqlite database, you'd typically want to target the database file that the application will read, like:
+
+```bash
+scripts/filldb/filldb.sh ~/.local/share/ecim/inventory.db
+```
+
+Afterwards, the database will be loaded with real world data.
+
+### Where Is My Database File Located?
+
+The application will print out the location of the database file to the console. After [building](../README.md#build-instructions) the project, run:
+
+```bash
+./ecim
+```
+
+On Windows, run it in powershell:
+
+```powershell
+.\ecim.exe
+```
+
+And the application will print something like:
+
+```
+DB Path:  "/home/user/.local/share/ecim/inventory.db"
+Database opened successfully
+Aut-backup disabled.
+```
+
+Use can use this directory with `filldb.sh`.
