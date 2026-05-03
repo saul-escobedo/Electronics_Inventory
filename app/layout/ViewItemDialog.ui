@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>ViewItemDialog</class>
- <widget class="QDialog" name="View_Item_Dialog">
+ <widget class="QDialog" name="ViewItemDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>489</width>
-    <height>452</height>
+    <height>158</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -22,11 +22,8 @@
      <height>32</height>
     </rect>
    </property>
-   <property name="orientation">
-    <enum>Qt::Orientation::Horizontal</enum>
-   </property>
    <property name="standardButtons">
-    <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
+    <set>QDialogButtonBox::NoButton</set>
    </property>
   </widget>
   <widget class="QLabel" name="Image_Label">
@@ -126,7 +123,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>accepted()</signal>
-   <receiver>View_Item_Dialog</receiver>
+   <receiver>ViewItemDialog</receiver>
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -142,7 +139,7 @@
   <connection>
    <sender>buttonBox</sender>
    <signal>rejected()</signal>
-   <receiver>View_Item_Dialog</receiver>
+   <receiver>ViewItemDialog</receiver>
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">

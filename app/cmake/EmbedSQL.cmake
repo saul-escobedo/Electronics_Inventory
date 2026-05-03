@@ -7,7 +7,7 @@
 #   - DBSQL_SRCS: List of SQL source files containing statements to embed
 #   - DBSQL_OUTPUT_HPP: Path to the output C++ header file
 
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.20)
 
 set(DBSQL_OUTPUT_HPP_DIR "${CMAKE_CURRENT_BINARY_DIR}/embedded_sql")
 set(DBSQL_OUTPUT_HPP "${DBSQL_OUTPUT_HPP_DIR}/EmbeddedSQLCode.hpp")

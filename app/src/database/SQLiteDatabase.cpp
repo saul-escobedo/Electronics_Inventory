@@ -62,7 +62,6 @@ static const std::pair<int, const char*> ACCESSORS_CODE[] = {
 };
 
 struct SQLiteDatabase::ComponentBase {
-    ComponentID ID;
     ElectronicComponent::Type type;
     ElectronicComponent::BaseConfig config;
     size_t next;
@@ -428,6 +427,8 @@ std::unique_ptr<ElectronicComponent> SQLiteDatabase::getComponent(
 
     if(ret != SQLITE_ROW)
         return nullptr;
+
+    config.ID = id;
 
     config.name = reinterpret_cast<const char*>(
         sqlite3_column_text(m_accessors.getComponent, 1)
@@ -1279,7 +1280,7 @@ MassQueryResult SQLiteDatabase::_getAllComponents(
 
         bases.push_back({});
 
-        bases[i].ID = sqlite3_column_int64(accessor, 0);
+        bases[i].config.ID = sqlite3_column_int64(accessor, 0);
 
         bases[i].config.name = reinterpret_cast<const char*>(
             sqlite3_column_text(accessor, 1)
@@ -1345,7 +1346,7 @@ MassQueryResult SQLiteDatabase::_getAllComponents(
     if(bases.size() < SHOULD_BATCH_THRESHOLD) {
         for(ComponentBase& base : bases)
             result.items.push_back(
-                _getAdditionalComponentProperties(base.ID, base.config, base.type));
+                _getAdditionalComponentProperties(base.config.ID, base.config, base.type));
 
         return result;
     }
@@ -1379,8 +1380,9 @@ void SQLiteDatabase::_getStatistics(
     _checkResultCode(ret, "Unable to get number of pages");
 
     if(ret != SQLITE_ROW) {
-        printf("[Warning]: Unable to get number of pages, but sqlite did not throw an error; unknown behavior");
+        printf("[Warning]: Unable to get number of pages, but sqlite did not throw an error; unknown behavior\n");
         totalPages = totalItems = 0;
+        return;
     }
 
     totalItems = sqlite3_column_int(accessor, 0);
@@ -1388,7 +1390,8 @@ void SQLiteDatabase::_getStatistics(
     if(config.pagination.has_value()){
         int itemsPerPage = config.pagination.value().itemsPerPage;
 
-        totalPages = totalItems / itemsPerPage;
+        // Ceiling integer division
+        totalPages = (totalItems + itemsPerPage - 1) / itemsPerPage;
     }
     else
         totalPages = totalItems != 0 ? 1 : 0;
@@ -1648,7 +1651,7 @@ void SQLiteDatabase::_bindIdsForBatching(
         if(bases[i].type != type)
             goto skip;
 
-        sqlite3_bind_int64(accessor, paramIndex + 1, bases[i].ID);
+        sqlite3_bind_int64(accessor, paramIndex + 1, bases[i].config.ID);
         m_baseIndexQueue.emplace_back(i);
 
         if(i == prevI) { // Flag first element in linked-list as removed

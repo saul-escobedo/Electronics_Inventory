@@ -2,6 +2,8 @@
 
 # Electronic Components Inventory Manager
 
+![Screenshot](./assets/images/screenshots/Screenshot%20from%202026-05-03%2002-43-12.png)
+
 ## Table of Contents
 
 * [Description](#description)
@@ -103,7 +105,7 @@ The application's assets such as images, fonts, sounds, or "asset-like" binaries
 
 The root directory of this repository contains the root `CMakeLists.txt` file (that builds the application's executable), `.gitignore`, and any other configuration files.
 
-The `scripts` directory contains python scripts that are external data importers to facilitate data entry using online electronic distributors. It will reside in the root directory for now until Python is properly integrated into the application.
+The `scripts` directory contains python or bash scripts that are useful tools for development. It also currently has the Python data importers to facilitate data entry using online electronic distributors that will be included in the project's distrobution, but they are there temporarily until Python is properly integrated into the application.
 
 ## Testing
 
@@ -122,6 +124,16 @@ Then you'd run the testing executable:
 ```bash
 app/ecim_tests
 ```
+
+**Prepopulating the SQLite Database For Development**
+
+Inside `scripts/filldb` resides the `filldb.sh` bash script that allows the developer to prepopulate an sqlite database for development. It will populate with real world data from [LCSC](https://www.lcsc.com/) for every type of electrical component. This is useful for testing the UI's view of items and seeing if it is populating correctly or for stress testing the backend. Unfortuntely, this may not work on windows, being that the script is bash (meant for UNIX systems). To prepopulate an sqlite database, you'd typically want to target the database file that the application will read, like:
+
+```bash
+scripts/filldb/filldb.sh ~/.local/share/ecim/inventory.db
+```
+
+Afterwards, the database will be loaded with real world data.
 
 ## Licenses
 
