@@ -17,21 +17,21 @@ public:
 
     void setItemData(const QString &name,
                  int quantity,
-                 int partNumber,
+                 const QString &partNumber,
                  const QString &imagePath);
 
     QString getName() const;
     int getQuantity() const;
-    int getPartNumber() const;
+    QString getPartNumber() const;
     QString getImagePath() const;
 
 private:
     Ui::EditItemDialog *ui;
     QString imagePath;
-    int originalPartNumber = -1; // To identify item in database.
+    QString originalPartNumber = ""; // To identify item in database.
 
 signals:
-    void deleteRequested(int partNumber);
+    void deleteRequested(const QString &partNumber);
 };
 
 #endif // EDIT_ITEM_DIALOG_HPP

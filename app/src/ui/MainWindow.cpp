@@ -15,6 +15,12 @@
 #include <QMessageBox>
 #include <QSettings>
 #include <QDir>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QPushButton>
+#include <QScreen>
+#include <QGuiApplication>
 
 #include <stdexcept>
 
@@ -61,17 +67,7 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::openItemView);
 
     connect(m_ui->addItem, &QAbstractButton::clicked, this, [this]() {
-        AddItemDialog dialog(this);
-
-        if(dialog.exec() != QDialog::Accepted)
-            return;
-
-        addItem(
-            dialog.getName(),
-            dialog.getQuantity(),
-            dialog.getPartNumber(),
-            dialog.getImagePath()
-        );
+        addItem("", 0, 0, "");
     });
 
     connect(m_ui->editItem, &QAbstractButton::clicked, this, [this]() {
@@ -84,6 +80,61 @@ MainWindow::MainWindow(QWidget *parent)
 
         openItemEdit(row);
     });
+
+    connect(m_ui->settings, &QAbstractButton::clicked, this, [this]() {
+        Settings settingsDialog(this);
+        settingsDialog.exec();
+    });
+
+    connect(m_ui->deleteItem, &QAbstractButton::clicked, this, [this]() {
+        int row = m_ui->itemsTable->currentRow();
+
+        if(row < 0) {
+            QMessageBox::information(this, "Delete Item", "Select an item to delete.");
+            return;
+        }
+
+        QDialog confirmDialog(this, Qt::Popup | Qt::FramelessWindowHint);
+        confirmDialog.setWindowTitle("Delete Item");
+        
+        QVBoxLayout* layout = new QVBoxLayout(&confirmDialog);
+        QLabel* label = new QLabel("Are you sure you want to delete this item?", &confirmDialog);
+        QHBoxLayout* buttonLayout = new QHBoxLayout();
+        
+        QPushButton* yesButton = new QPushButton("Yes", &confirmDialog);
+        QPushButton* noButton = new QPushButton("No", &confirmDialog);
+        
+        buttonLayout->addWidget(yesButton);
+        buttonLayout->addWidget(noButton);
+        
+        layout->addWidget(label);
+        layout->addLayout(buttonLayout);
+        
+        // Center the popup on the main window
+        QScreen* screen = QGuiApplication::primaryScreen();
+        QRect screenGeometry = screen->geometry();
+        int x = (screenGeometry.width() - confirmDialog.width()) / 2;
+        int y = (screenGeometry.height() - confirmDialog.height()) / 2;
+        confirmDialog.move(x, y);
+
+        connect(yesButton, &QPushButton::clicked, &confirmDialog, &QDialog::accept);
+        connect(noButton, &QPushButton::clicked, &confirmDialog, &QDialog::reject);
+
+        if(confirmDialog.exec() == QDialog::Accepted) {
+            deleteItem(row);
+        }
+    });
+
+    connect(m_ui->resistorDividerTool, &QAbstractButton::clicked, this, [this]() {
+        openResistorDividerTool();
+    });
+
+    // Center the main window on screen
+    QScreen* screen = QGuiApplication::primaryScreen();
+    QRect screenGeometry = screen->geometry();
+    int x = (screenGeometry.width() - width()) / 2;
+    int y = (screenGeometry.height() - height()) / 2;
+    move(x, y);
 
     m_ui->itemsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_ui->itemsTable->verticalHeader()->setVisible(false);
@@ -247,8 +298,10 @@ void MainWindow::setupTableColumns() {
         m_ui->itemsTable->setColumnWidth(0, 20);
 
         m_columnPorportionalWidths[0] = 0.5f / 6;
-        for(int i = 1; i < 5; i++)
-            m_columnPorportionalWidths[i] = (1.0f - m_columnPorportionalWidths[0] * 2) / 4;
+        m_columnPorportionalWidths[1] = 0.25f; // Type column gets more space
+        m_columnPorportionalWidths[2] = 0.25f; // Name column
+        m_columnPorportionalWidths[3] = 0.2f;  // Manufacturer column
+        m_columnPorportionalWidths[4] = 0.2f;  // Part Number column
         m_columnPorportionalWidths[5] = m_columnPorportionalWidths[0];
 
         return;
@@ -319,6 +372,7 @@ void MainWindow::fetchDbAndPopulate() {
     populateTable();
     updatePartsFoundLabel(m_dbResult.totalNumItems);
     updatePaginator();
+    updateDashboard();
 }
 
 void MainWindow::setSearchFilters() {
@@ -382,79 +436,73 @@ void MainWindow::fetchDatabase() {
         m_dbResult = m_dbManager.getAllComponentsByType(m_catalogType.value(), m_queryConfig);
 }
 
+void MainWindow::populateComponentRow(int row, const std::unique_ptr<ElectronicComponent>& component) {
+    int col = 1; // Skip ID column (already set)
+
+    if(!m_catalogType.has_value()) {
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_componentTypeAsString(component->type())));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(component->name()));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(component->manufacturer()));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(component->partNumber()));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItemi(component->quantity()));
+        return;
+    }
+
+    m_ui->itemsTable->setItem(row, col++, s_newTableItem(component->manufacturer()));
+    m_ui->itemsTable->setItem(row, col++, s_newTableItem(component->partNumber()));
+
+    switch(m_catalogType.value()) {
+    case ElectronicComponent::Type::Resistor: {
+        auto* r = dynamic_cast<Resistor*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(r->resistance(), "Ω")));
+        break;
+    }
+    case ElectronicComponent::Type::Capacitor: {
+        auto* c = dynamic_cast<Capacitor*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_capacitorTypeAsString(c->capacitorType())));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(c->capacitance(), "F")));
+        break;
+    }
+    case ElectronicComponent::Type::Inductor: {
+        auto* i = dynamic_cast<Inductor*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(i->inductance(), "H")));
+        break;
+    }
+    case ElectronicComponent::Type::Diode: {
+        auto* d = dynamic_cast<Diode*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_diodeTypeAsString(d->diodeType())));
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(d->forwardVoltage(), "V")));
+        break;
+    }
+    case ElectronicComponent::Type::BJTransistor: {
+        auto* t = dynamic_cast<BJTransistor*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->gain(), "")));
+        break;
+    }
+    case ElectronicComponent::Type::FETransistor: {
+        auto* t = dynamic_cast<FETransistor*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->thresholdVoltage(), "V")));
+        break;
+    }
+    case ElectronicComponent::Type::IntegratedCircuit: {
+        auto* ic = dynamic_cast<IntegratedCircuit*>(component.get());
+        m_ui->itemsTable->setItem(row, col++, s_newTableItemi(ic->pinCount()));
+        break;
+    }
+    }
+
+    m_ui->itemsTable->setItem(row, col++, s_newTableItemi(component->quantity()));
+}
+
 void MainWindow::populateTable() {
     QTableWidget* const table = m_ui->itemsTable;
-
     table->setRowCount(0);
 
     for(const auto& item : m_dbResult.items) {
         int row = table->rowCount();
-        int col = 0;
-
         table->insertRow(row);
-
-        table->setItem(row, col++, s_newTableItemi(item->ID()));
-
-        if(!m_catalogType.has_value()) {
-            table->setItem(row, col++, s_newTableItem( s_componentTypeAsString(item->type()) ));
-            table->setItem(row, col++, s_newTableItem(item->name()));
-            table->setItem(row, col++, s_newTableItem(item->manufacturer()));
-            table->setItem(row, col++, s_newTableItem(item->partNumber()));
-            table->setItem(row, col++, s_newTableItemi(item->quantity()));
-            continue;
-        }
-
-        table->setItem(row, col++, s_newTableItem(item->manufacturer()));
-        table->setItem(row, col++, s_newTableItem(item->partNumber()));
-
-        switch(m_catalogType.value()) {
-        case ElectronicComponent::Type::Resistor: {
-            Resistor* r = dynamic_cast<Resistor*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(r->resistance(), "Ω")));
-            break;
-        }
-        case ElectronicComponent::Type::Capacitor: {
-            Capacitor* c = dynamic_cast<Capacitor*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_capacitorTypeAsString(c->capacitorType())));
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(c->capacitance(), "F")));
-            break;
-        }
-        case ElectronicComponent::Type::Inductor: {
-            Inductor* i = dynamic_cast<Inductor*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(i->inductance(), "H")));
-            break;
-        }
-        case ElectronicComponent::Type::Diode: {
-            Diode* d = dynamic_cast<Diode*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_diodeTypeAsString(d->diodeType())));
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(d->forwardVoltage(), "V")));
-            break;
-        }
-        case ElectronicComponent::Type::BJTransistor: {
-            BJTransistor* t = dynamic_cast<BJTransistor*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->gain(), "")));
-            break;
-        }
-        case ElectronicComponent::Type::FETransistor: {
-            FETransistor* t = dynamic_cast<FETransistor*>(item.get());
-
-            table->setItem(row, col++, s_newTableItem(s_toStandardUnits(t->thresholdVoltage(), "V")));
-            break;
-        }
-        case ElectronicComponent::Type::IntegratedCircuit: {
-            IntegratedCircuit* ic = dynamic_cast<IntegratedCircuit*>(item.get());
-
-            table->setItem(row, col++, s_newTableItemi(ic->pinCount()));
-            break;
-        }
-        }
-
-        m_ui->itemsTable->setItem(row, col++, s_newTableItemi(item->quantity()));
+        table->setItem(row, 0, s_newTableItemi(item->ID()));
+        populateComponentRow(row, item);
     }
 }
 
@@ -464,62 +512,49 @@ void MainWindow::onSearch() {
     fetchDbAndPopulate();
 }
 
-void MainWindow::addItem(const QString &name, int quantity, int part_num, const QString &image_path) {
-    if(!m_catalogType.has_value()) {
-        QMessageBox::information(
-            this,
-            "Add Item",
-            "Select a specific catalog type before adding a new item."
-        );
-        return;
+std::unique_ptr<ElectronicComponent> MainWindow::createComponentFromDialog(
+    ElectronicComponent::Type type,
+    const ElectronicComponent::BaseConfig& base,
+    const AddItemDialog& dialog)
+{
+    switch(type) {
+    case ElectronicComponent::Type::Resistor:
+        return std::make_unique<Resistor>(base, dialog.getResistance(), dialog.getTolerance());
+    case ElectronicComponent::Type::Capacitor:
+        return std::make_unique<Capacitor>(base, dialog.getCapacitorType(), dialog.getCapacitance());
+    case ElectronicComponent::Type::Inductor:
+        return std::make_unique<Inductor>(base, dialog.getInductance());
+    case ElectronicComponent::Type::Diode:
+        return std::make_unique<Diode>(base, dialog.getForwardVoltage(), dialog.getDiodeType());
+    case ElectronicComponent::Type::BJTransistor:
+        return std::make_unique<BJTransistor>(base, dialog.getGain());
+    case ElectronicComponent::Type::FETransistor:
+        return std::make_unique<FETransistor>(base, dialog.getThresholdVoltage());
+    case ElectronicComponent::Type::IntegratedCircuit:
+        return std::make_unique<IntegratedCircuit>(base, dialog.getPinCount(), 0.0, 0.0, 0.0);
     }
+    return nullptr;
+}
+
+void MainWindow::addItem(const QString &name, int quantity, const QString &part_num, const QString &image_path) {
+    AddItemDialog dialog(this);
+
+    if(dialog.exec() != QDialog::Accepted)
+        return;
 
     ElectronicComponent::BaseConfig base = {
         .rating = {},
-        .name = name.trimmed().toStdString(),
-        .manufacturer = "Unknown",
-        .partNumber = QString::number(part_num).toStdString(),
-        .description = image_path.toStdString(),
-        .quantity = static_cast<size_t>(quantity)
+        .name = dialog.getName().trimmed().toStdString(),
+        .manufacturer = dialog.getManufacturer().toStdString(),
+        .partNumber = dialog.getPartNumber().toStdString(),
+        .description = dialog.getImagePath().toStdString(),
+        .quantity = static_cast<size_t>(dialog.getQuantity())
     };
 
     try {
-        switch(m_catalogType.value()) {
-        case ElectronicComponent::Type::Resistor: {
-            Resistor component(base, 0.0, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::Capacitor: {
-            Capacitor component(base, Capacitor::Type::Ceramic, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::Inductor: {
-            Inductor component(base, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::Diode: {
-            Diode component(base, 0.0, Diode::Type::Regular);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::BJTransistor: {
-            BJTransistor component(base, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::FETransistor: {
-            FETransistor component(base, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
-        case ElectronicComponent::Type::IntegratedCircuit: {
-            IntegratedCircuit component(base, 1, 0.0, 0.0, 0.0);
-            m_dbManager.addComponent(component);
-            break;
-        }
+        auto component = createComponentFromDialog(dialog.getComponentType(), base, dialog);
+        if(component) {
+            m_dbManager.addComponent(*component);
         }
     }
     catch(const std::exception& e) {
@@ -528,6 +563,123 @@ void MainWindow::addItem(const QString &name, int quantity, int part_num, const 
     }
 
     fetchDbAndPopulate();
+    updateDashboard();
+}
+
+void MainWindow::deleteItem(int row) {
+    try {
+        // Get the component ID from the first column
+        QTableWidgetItem* idItem = m_ui->itemsTable->item(row, 0);
+        if(!idItem) {
+            QMessageBox::critical(this, "Delete Item", "Could not get item ID.");
+            return;
+        }
+
+        ComponentID id = idItem->data(Qt::DisplayRole).toInt();
+        m_dbManager.removeComponent(id);
+        fetchDbAndPopulate();
+        updateDashboard();
+    }
+    catch(const std::exception& e) {
+        QMessageBox::critical(this, "Delete Item", QString("Could not delete item: %1").arg(e.what()));
+    }
+}
+
+void MainWindow::openResistorDividerTool() {
+    QDialog dividerDialog(this, Qt::Popup | Qt::FramelessWindowHint);
+    dividerDialog.setWindowTitle("Resistor Divider Calculator");
+    dividerDialog.setMinimumSize(400, 300);
+    
+    QVBoxLayout* layout = new QVBoxLayout(&dividerDialog);
+    
+    QLabel* inputLabel = new QLabel("Input Voltage (V):", &dividerDialog);
+    QLineEdit* inputVoltage = new QLineEdit(&dividerDialog);
+    
+    QLabel* outputLabel = new QLabel("Output Voltage (V):", &dividerDialog);
+    QLineEdit* outputVoltage = new QLineEdit(&dividerDialog);
+    
+    QPushButton* calculateButton = new QPushButton("Calculate", &dividerDialog);
+    QLabel* resultLabel = new QLabel("Result: --", &dividerDialog);
+    resultLabel->setAlignment(Qt::AlignCenter);
+    
+    layout->addWidget(inputLabel);
+    layout->addWidget(inputVoltage);
+    layout->addWidget(outputLabel);
+    layout->addWidget(outputVoltage);
+    layout->addWidget(calculateButton);
+    layout->addWidget(resultLabel);
+    
+    // Center the popup
+    if(parentWidget()) {
+        dividerDialog.move(parentWidget()->x() + (parentWidget()->width() - dividerDialog.width()) / 2,
+                         parentWidget()->y() + (parentWidget()->height() - dividerDialog.height()) / 2);
+    } else {
+        QScreen* screen = QGuiApplication::primaryScreen();
+        QRect screenGeometry = screen->geometry();
+        int x = (screenGeometry.width() - dividerDialog.width()) / 2;
+        int y = (screenGeometry.height() - dividerDialog.height()) / 2;
+        dividerDialog.move(x, y);
+    }
+
+    connect(calculateButton, &QPushButton::clicked, [&]() {
+        bool ok1, ok2;
+        double vin = inputVoltage->text().toDouble(&ok1);
+        double vout = outputVoltage->text().toDouble(&ok2);
+        
+        if(!ok1 || !ok2 || vin <= 0) {
+            resultLabel->setText("Invalid input voltage");
+            return;
+        }
+        
+        if(vout >= vin) {
+            resultLabel->setText("Output must be less than input");
+            return;
+        }
+        
+        double ratio = vout / vin;
+        resultLabel->setText(QString("Ratio: %1 (R2/(R1+R2))").arg(ratio, 0, 'f', 3));
+    });
+
+    dividerDialog.exec();
+}
+
+void MainWindow::updateDashboard() {
+    try {
+        int totalParts = 0;
+        int resistors = 0;
+        int capacitors = 0;
+        int inductors = 0;
+        int ics = 0;
+
+        for(const auto& item : m_dbResult.items) {
+            totalParts++;
+            switch(item->type()) {
+                case ElectronicComponent::Type::Resistor:
+                    resistors++;
+                    break;
+                case ElectronicComponent::Type::Capacitor:
+                    capacitors++;
+                    break;
+                case ElectronicComponent::Type::Inductor:
+                    inductors++;
+                    break;
+                case ElectronicComponent::Type::IntegratedCircuit:
+                    ics++;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        m_ui->totalPartsValue->setText(QString::number(totalParts));
+        m_ui->resistorsValue->setText(QString::number(resistors));
+        m_ui->capacitorsValue->setText(QString::number(capacitors));
+        m_ui->inductorsValue->setText(QString::number(inductors));
+        m_ui->icsValue->setText(QString::number(ics));
+    }
+    catch(const std::exception& e) {
+        qDebug() << "Error updating dashboard: " << e.what();
+    }
 }
 
 void MainWindow::openItemView(int row, int column) {
@@ -557,13 +709,172 @@ void MainWindow::openItemView(int row, int column) {
     }
 
     ViewItemDialog dialog(this);
+
+    // Get component type as string
+    QString componentTypeStr;
+    switch(component->type()) {
+    case ElectronicComponent::Type::Resistor:
+        componentTypeStr = "Resistor";
+        break;
+    case ElectronicComponent::Type::Capacitor:
+        componentTypeStr = "Capacitor";
+        break;
+    case ElectronicComponent::Type::Inductor:
+        componentTypeStr = "Inductor";
+        break;
+    case ElectronicComponent::Type::Diode:
+        componentTypeStr = "Diode";
+        break;
+    case ElectronicComponent::Type::BJTransistor:
+        componentTypeStr = "BJ Transistor";
+        break;
+    case ElectronicComponent::Type::FETransistor:
+        componentTypeStr = "FE Transistor";
+        break;
+    case ElectronicComponent::Type::IntegratedCircuit:
+        componentTypeStr = "Integrated Circuit";
+        break;
+    }
+
+    QString manufacturer = QString(component->manufacturer().c_str());
+    QString property1, property2;
+
+    // Get component-specific properties
+    switch(component->type()) {
+    case ElectronicComponent::Type::Resistor: {
+        auto* typed = dynamic_cast<Resistor*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->resistance()) + " Ω";
+            property2 = QString::number(typed->toleranceBand()) + " %";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::Capacitor: {
+        auto* typed = dynamic_cast<Capacitor*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->capacitance()) + " F";
+            property2 = "-";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::Inductor: {
+        auto* typed = dynamic_cast<Inductor*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->inductance()) + " H";
+            property2 = "-";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::Diode: {
+        auto* typed = dynamic_cast<Diode*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->forwardVoltage()) + " V";
+            property2 = "-";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::BJTransistor: {
+        auto* typed = dynamic_cast<BJTransistor*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->gain()) + " hFE";
+            property2 = "-";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::FETransistor: {
+        auto* typed = dynamic_cast<FETransistor*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->thresholdVoltage()) + " V";
+            property2 = "-";
+        }
+        break;
+    }
+    case ElectronicComponent::Type::IntegratedCircuit: {
+        auto* typed = dynamic_cast<IntegratedCircuit*>(component.get());
+        if(typed) {
+            property1 = QString::number(typed->pinCount()) + " pins";
+            property2 = QString::number(typed->width()) + "x" + QString::number(typed->height()) + "x" + QString::number(typed->length()) + " mm";
+        }
+        break;
+    }
+    }
+
     dialog.setItemData(
         component->name().c_str(),
         static_cast<int>(component->quantity()),
-        QString(component->partNumber().c_str()).toInt(),
-        component->description().c_str()
+        QString(component->partNumber().c_str()),
+        component->description().c_str(),
+        componentTypeStr,
+        manufacturer,
+        property1,
+        property2
     );
     dialog.exec();
+}
+
+void MainWindow::updateComponentFromDialog(
+    ComponentID id,
+    const std::unique_ptr<ElectronicComponent>& component,
+    const ElectronicComponent::BaseConfig& base)
+{
+    switch(component->type()) {
+    case ElectronicComponent::Type::Resistor: {
+        auto* typed = dynamic_cast<Resistor*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for resistor");
+        Resistor updated(base, typed->resistance(), typed->toleranceBand());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::Capacitor: {
+        auto* typed = dynamic_cast<Capacitor*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for capacitor");
+        Capacitor updated(base, typed->capacitorType(), typed->capacitance());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::Inductor: {
+        auto* typed = dynamic_cast<Inductor*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for inductor");
+        Inductor updated(base, typed->inductance());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::Diode: {
+        auto* typed = dynamic_cast<Diode*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for diode");
+        Diode updated(base, typed->forwardVoltage(), typed->diodeType());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::BJTransistor: {
+        auto* typed = dynamic_cast<BJTransistor*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for BJ transistor");
+        BJTransistor updated(base, typed->gain());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::FETransistor: {
+        auto* typed = dynamic_cast<FETransistor*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for FE transistor");
+        FETransistor updated(base, typed->thresholdVoltage());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    case ElectronicComponent::Type::IntegratedCircuit: {
+        auto* typed = dynamic_cast<IntegratedCircuit*>(component.get());
+        if(!typed)
+            throw std::runtime_error("Internal type mismatch for integrated circuit");
+        IntegratedCircuit updated(base, typed->pinCount(), typed->width(), typed->height(), typed->length());
+        m_dbManager.editComponent(id, updated);
+        break;
+    }
+    }
 }
 
 void MainWindow::openItemEdit(int row) {
@@ -594,11 +905,11 @@ void MainWindow::openItemEdit(int row) {
     dialog.setItemData(
         component->name().c_str(),
         static_cast<int>(component->quantity()),
-        QString(component->partNumber().c_str()).toInt(),
+        QString(component->partNumber().c_str()),
         component->description().c_str()
     );
 
-    connect(&dialog, &EditItemDialog::deleteRequested, this, [this, id](int) {
+    connect(&dialog, &EditItemDialog::deleteRequested, this, [this, id](const QString &) {
         try {
             m_dbManager.removeComponent(id);
             fetchDbAndPopulate();
@@ -615,71 +926,14 @@ void MainWindow::openItemEdit(int row) {
         .rating = component->rating(),
         .name = dialog.getName().trimmed().toStdString(),
         .manufacturer = component->manufacturer(),
-        .partNumber = QString::number(dialog.getPartNumber()).toStdString(),
+        .partNumber = dialog.getPartNumber().toStdString(),
         .description = dialog.getImagePath().toStdString(),
         .quantity = static_cast<size_t>(dialog.getQuantity()),
         .ID = component->ID()
     };
 
     try {
-        switch(component->type()) {
-        case ElectronicComponent::Type::Resistor: {
-            auto* typed = dynamic_cast<Resistor*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for resistor");
-            Resistor updated(base, typed->resistance(), typed->toleranceBand());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::Capacitor: {
-            auto* typed = dynamic_cast<Capacitor*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for capacitor");
-            Capacitor updated(base, typed->capacitorType(), typed->capacitance());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::Inductor: {
-            auto* typed = dynamic_cast<Inductor*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for inductor");
-            Inductor updated(base, typed->inductance());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::Diode: {
-            auto* typed = dynamic_cast<Diode*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for diode");
-            Diode updated(base, typed->forwardVoltage(), typed->diodeType());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::BJTransistor: {
-            auto* typed = dynamic_cast<BJTransistor*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for BJ transistor");
-            BJTransistor updated(base, typed->gain());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::FETransistor: {
-            auto* typed = dynamic_cast<FETransistor*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for FE transistor");
-            FETransistor updated(base, typed->thresholdVoltage());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        case ElectronicComponent::Type::IntegratedCircuit: {
-            auto* typed = dynamic_cast<IntegratedCircuit*>(component.get());
-            if(!typed)
-                throw std::runtime_error("Internal type mismatch for integrated circuit");
-            IntegratedCircuit updated(base, typed->pinCount(), typed->width(), typed->height(), typed->length());
-            m_dbManager.editComponent(id, updated);
-            break;
-        }
-        }
+        updateComponentFromDialog(id, component, base);
     }
     catch(const std::exception& e) {
         QMessageBox::critical(this, "Edit Item", QString("Could not save item changes: %1").arg(e.what()));

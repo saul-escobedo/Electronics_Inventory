@@ -26,11 +26,69 @@
     <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
    </property>
   </widget>
+  <widget class="QLabel" name="componentTypeLabel">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>30</y>
+     <width>91</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Type:</string>
+   </property>
+  </widget>
+  <widget class="QComboBox" name="componentType">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>30</y>
+     <width>181</width>
+     <height>26</height>
+    </rect>
+   </property>
+   <item>
+    <property name="text">
+     <string>Resistor</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Capacitor</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Inductor</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Diode</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>BJ Transistor</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>FE Transistor</string>
+    </property>
+   </item>
+   <item>
+    <property name="text">
+     <string>Integrated Circuit</string>
+    </property>
+   </item>
+  </widget>
   <widget class="QLabel" name="Name">
    <property name="geometry">
     <rect>
-     <x>310</x>
-     <y>60</y>
+     <x>250</x>
+     <y>70</y>
      <width>58</width>
      <height>18</height>
     </rect>
@@ -42,8 +100,31 @@
   <widget class="QLineEdit" name="edit_name">
    <property name="geometry">
     <rect>
-     <x>360</x>
-     <y>60</y>
+     <x>370</x>
+     <y>70</y>
+     <width>181</width>
+     <height>26</height>
+    </rect>
+   </property>
+  </widget>
+  <widget class="QLabel" name="Manufacturer">
+   <property name="geometry">
+    <rect>
+     <x>250</x>
+     <y>110</y>
+     <width>101</width>
+     <height>18</height>
+    </rect>
+   </property>
+   <property name="text">
+    <string>Manufacturer:</string>
+   </property>
+  </widget>
+  <widget class="QLineEdit" name="edit_manufacturer">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>110</y>
      <width>181</width>
      <height>26</height>
     </rect>
@@ -52,21 +133,21 @@
   <widget class="QLabel" name="Part_Number">
    <property name="geometry">
     <rect>
-     <x>310</x>
-     <y>100</y>
-     <width>91</width>
+     <x>250</x>
+     <y>150</y>
+     <width>111</width>
      <height>18</height>
     </rect>
    </property>
    <property name="text">
-    <string>Part Number:</string>
+    <string>Serial Number:</string>
    </property>
   </widget>
   <widget class="QLineEdit" name="edit_part_num">
    <property name="geometry">
     <rect>
-     <x>410</x>
-     <y>100</y>
+     <x>370</x>
+     <y>150</y>
      <width>181</width>
      <height>26</height>
     </rect>
@@ -75,14 +156,24 @@
   <widget class="QLabel" name="Quantity">
    <property name="geometry">
     <rect>
-     <x>310</x>
-     <y>140</y>
+     <x>250</x>
+     <y>190</y>
      <width>61</width>
      <height>18</height>
     </rect>
    </property>
    <property name="text">
     <string>Quantity: </string>
+   </property>
+  </widget>
+  <widget class="QSpinBox" name="edit_quantity">
+   <property name="geometry">
+    <rect>
+     <x>370</x>
+     <y>190</y>
+     <width>42</width>
+     <height>27</height>
+    </rect>
    </property>
   </widget>
   <widget class="QLabel" name="Image">
@@ -102,7 +193,7 @@
    <property name="geometry">
     <rect>
      <x>30</x>
-     <y>190</y>
+     <y>230</y>
      <width>86</width>
      <height>26</height>
     </rect>
@@ -127,15 +218,48 @@
     <set>Qt::AlignCenter</set>
    </property>
   </widget>
-  <widget class="QSpinBox" name="edit_quantity">
+  <widget class="QGroupBox" name="componentSpecificGroupBox">
    <property name="geometry">
     <rect>
-     <x>430</x>
-     <y>140</y>
-     <width>42</width>
-     <height>27</height>
+     <x>250</x>
+     <y>260</y>
+     <width>331</width>
+     <height>80</height>
     </rect>
    </property>
+   <property name="title">
+    <string>Component Properties</string>
+   </property>
+   <layout class="QVBoxLayout" name="componentLayout">
+    <item>
+     <layout class="QHBoxLayout" name="property1Layout">
+      <item>
+       <widget class="QLabel" name="Property1_Label">
+        <property name="text">
+         <string>Property 1:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="edit_property1"/>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="property2Layout">
+      <item>
+       <widget class="QLabel" name="Property2_Label">
+        <property name="text">
+         <string>Property 2:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="edit_property2"/>
+      </item>
+     </layout>
+    </item>
+   </layout>
   </widget>
  </widget>
  <resources/>

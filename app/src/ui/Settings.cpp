@@ -3,22 +3,43 @@
 
 #include <QSettings>
 #include <QFileDialog>
+#include <QScreen>
+#include <QGuiApplication>
 
 Settings::Settings(QWidget *parent)
-    : QDialog(parent)
+    : QDialog(parent, Qt::FramelessWindowHint)
     , ui(new Ui::Settings)
 {
     ui->setupUi(this);
+    
+    // Center the dialog on the parent widget or screen
+    if(parent) {
+        move(parent->x() + (parent->width() - width()) / 2,
+             parentWidget()->y() + (parentWidget()->height() - height()) / 2);
+    } else {
+        // Center on screen if no parent
+        QScreen *screen = QGuiApplication::primaryScreen();
+        QRect screenGeometry = screen->geometry();
+        int x = (screenGeometry.width() - width()) / 2;
+        int y = (screenGeometry.height() - height()) / 2;
+        move(x, y);
+    }
 
     loadSettings();
-
-    connect(ui->saveButton, &QPushButton::clicked,
-            this, &Settings::saveSettings);
 
     connect(ui->browseButton, &QPushButton::clicked, this, [this]() {
         QString path = QFileDialog::getExistingDirectory(this, "Select Folder");
         if(!path.isEmpty())
             ui->dbPathLineEdit->setText(path);
+    });
+
+    connect(ui->autoBackupCheckBox, &QCheckBox::stateChanged, this, [this]() {
+        saveSettings();
+    });
+
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, [this]() {
+        saveSettings();
+        accept();
     });
 }
 
@@ -39,6 +60,7 @@ void Settings::loadSettings()
 
     ui->usernameLineEdit->setText(settings.value("username", "").toString());
     ui->dbPathLineEdit->setText(settings.value("dbPath", "").toString());
+    ui->autoBackupCheckBox->setChecked(settings.value("autoBackup", false).toBool());
 }
 
 void Settings::saveSettings()
@@ -49,8 +71,16 @@ void Settings::saveSettings()
                       ui->backupFrequency->currentText());
 
     settings.setValue("username", ui->usernameLineEdit->text());
-    settings.setValue("dbPath", ui->dbPathLineEdit->text());
+    
+    // Validate and save db path
+    QString dbPath = ui->dbPathLineEdit->text();
+    if(dbPath.isEmpty() || dbPath.isNull()) {
+        qDebug() << "Empty dbPath, not saving";
+    } else {
+        settings.setValue("dbPath", dbPath);
+    }
+    
+    settings.setValue("autoBackup", ui->autoBackupCheckBox->isChecked());
 
     emit settingsChanged();
-    accept(); // close dialog
 }

@@ -17,7 +17,6 @@ EditItemDialog::EditItemDialog(QWidget *parent)
 
     ui->image_label->setAlignment(Qt::AlignCenter);
     ui->image_label->setText("No image selected");
-    ui->part_number_line_edit->setValidator(new QIntValidator(1, 999999999, this));
     ui->quantity_spin_box->setMinimum(0);
 
     auto updateSaveState = [this]() {
@@ -74,12 +73,12 @@ EditItemDialog::~EditItemDialog()
 
 void EditItemDialog::setItemData(const QString &name,
                                    int quantity,
-                                   int partNumber,
+                                   const QString &partNumber,
                                    const QString &imagePath)
 {
     ui->name_line_edit->setText(name);
     ui->quantity_spin_box->setValue(quantity);
-    ui->part_number_line_edit->setText(QString::number(partNumber));
+    ui->part_number_line_edit->setText(partNumber);
 
     this->imagePath = imagePath;
     originalPartNumber = partNumber;
@@ -104,9 +103,9 @@ int EditItemDialog::getQuantity() const
     return ui->quantity_spin_box->value();
 }
 
-int EditItemDialog::getPartNumber() const
+QString EditItemDialog::getPartNumber() const
 {
-    return ui->part_number_line_edit->text().toInt();
+    return ui->part_number_line_edit->text();
 }
 
 QString EditItemDialog::getImagePath() const

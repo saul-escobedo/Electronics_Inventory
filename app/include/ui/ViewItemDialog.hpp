@@ -18,16 +18,23 @@ public:
     void setItemData(
         const QString &name,
         int quantity,
-        int part_number,
-        const QString &image_path
+        const QString &part_number,
+        const QString &image_path,
+        const QString &component_type,
+        const QString &manufacturer,
+        const QString &property1,
+        const QString &property2
     );
 
-    //Function to fill data of item.
     void Set_Item_Data(
         const QString &name,
         int quantity,
-        int part_number,
-        const QString &image_path
+        const QString &part_number,
+        const QString &image_path,
+        const QString &component_type,
+        const QString &manufacturer,
+        const QString &property1,
+        const QString &property2
     );
 
 private:

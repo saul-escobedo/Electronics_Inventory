@@ -21,7 +21,22 @@ DatabaseManager::DatabaseManager()
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
                                      ).toString();
 
-    QDir().mkpath(folderPath);  // Ensure folder exists
+    // Validate the folder path
+    if(folderPath.isEmpty() || folderPath.isNull()) {
+        qDebug() << "Invalid dbPath in settings, using default";
+        folderPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    }
+
+    // Ensure folder exists
+    QDir dir(folderPath);
+    if(!dir.exists()) {
+        if(!dir.mkpath(folderPath)) {
+            qDebug() << "Failed to create directory: " << folderPath;
+            qDebug() << "Using default directory instead";
+            folderPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QDir().mkpath(folderPath);
+        }
+    }
 
     m_dbPath = folderPath + "/inventory.db";
 

@@ -3,6 +3,7 @@
 
 #include "electrical/ElectronicComponent.hpp"
 #include "DatabaseManager.hpp"
+#include "AddItemDialog.hpp"
 
 #include <QMainWindow>
 #include <QTimer>   //Used to be able to use time for the automatic backups.
@@ -58,14 +59,28 @@ private:
     void setSearchFilters();
     void fetchDatabase();
     void populateTable();
+    void updateDashboard();
 
     // Event handlers
     void onSearch();
-    void addItem(const QString &name, int parts, int part_num, const QString &image_path);
+    void addItem(const QString &name, int parts, const QString &part_num, const QString &image_path);
+    void deleteItem(int row);
     void openItemView(int row, int column);
     void openItemEdit(int row);
+    void openResistorDividerTool();
     void onChangeCatalog(int selectionIndex);
     void resizeEvent(QResizeEvent* event) override;
     void showEvent(QShowEvent* event) override;
+
+    // Helper methods to reduce component-specific code duplication
+    void populateComponentRow(int row, const std::unique_ptr<ecim::ElectronicComponent>& component);
+    std::unique_ptr<ecim::ElectronicComponent> createComponentFromDialog(
+        ecim::ElectronicComponent::Type type,
+        const ecim::ElectronicComponent::BaseConfig& base,
+        const AddItemDialog& dialog);
+    void updateComponentFromDialog(
+        ecim::ComponentID id,
+        const std::unique_ptr<ecim::ElectronicComponent>& component,
+        const ecim::ElectronicComponent::BaseConfig& base);
 };
 #endif // MAINWINDOW_HPP
